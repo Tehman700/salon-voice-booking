@@ -45,3 +45,6 @@ Thumbs.db
 # Third-party web page snapshot (vendor JS + analytics config); its token export lives in docs/design-tokens.css
 docs/Vercel Design System, Tokens and DESIGN.md _ DesignMD.html
 docs/Vercel Design System, Tokens and DESIGN.md _ DesignMD_files/
+
+# Claude Code parallel worktrees
+.claude/worktrees/

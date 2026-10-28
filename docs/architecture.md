@@ -1,6 +1,6 @@
 # Architecture and build plan
 
-Status: **planning** — no application code yet. This records the decisions made so far; it evolves as we build.
+Status: **M0 complete.** This records the decisions made so far; it evolves as we build. Module briefs live in [modules/](modules/), the shared API shapes in [api-contract.md](api-contract.md).
 
 ## System overview
 
