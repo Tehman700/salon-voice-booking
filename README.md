@@ -2,7 +2,33 @@
 
 An AI-powered, multi-location salon booking platform. Customers call a natural-sounding **Retell AI** receptionist that answers questions, checks real-time availability, and books, reschedules, or cancels appointments. Salon owners, managers, and staff run everything from a responsive admin dashboard.
 
-> **Status:** planning. Architecture and module plan are agreed; implementation starts with M0 (foundation).
+> **Status:** M0 (foundation) complete — backend and frontend skeletons, local Docker stack, CI. M1 (tenancy + auth), M5 (staging deploy), and M8a (dashboard shell) are in progress in parallel.
+
+## Quick start
+```bash
+docker compose up -d db                       # Postgres 18 on localhost:5544
+
+cd backend
+cp .env.example .env
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload          # http://localhost:8000/docs
+
+cd ../frontend
+cp .env.example .env.local
+pnpm install
+pnpm dev                                      # http://localhost:3000
+```
+
+Run everything in containers instead: `docker compose up --build`.
+
+### Checks
+| | Command |
+|---|---|
+| Backend | `uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest` |
+| Frontend | `pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e` |
+
+CI runs all of these on every push and pull request.
 
 ## Highlights
 - **Voice receptionist** — Retell AI custom functions backed by real booking APIs; never confirms an action the backend didn't confirm.
@@ -23,6 +49,8 @@ An AI-powered, multi-location salon booking platform. Customers call a natural-s
 ## Documentation
 - [Requirements brief](docs/requirements.md)
 - [Architecture and build plan](docs/architecture.md)
+- [API contract](docs/api-contract.md)
+- [Module briefs](docs/modules/)
 - [Design system](docs/design-file.txt) and [theme tokens](docs/design-tokens.css)
 - [CLAUDE.md](CLAUDE.md) — project memory for AI coding agents
 

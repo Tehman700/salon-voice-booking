@@ -40,3 +40,24 @@ Multi-tenant AI salon booking platform: a Retell AI voice receptionist plus an a
 
 ## Testing expectations
 Test everything: backend unit + integration against real Postgres, concurrency race tests, tenant isolation, Retell tool contracts, frontend component tests, Playwright E2E. CI must pass before merge.
+
+## Local development
+- Postgres: `docker compose up -d db` (host port **5544**). Full stack in containers: `docker compose up --build`.
+- Backend (`backend/`): `uv sync`, `uv run alembic upgrade head`, `uv run uvicorn app.main:app --reload`. Checks: `uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest`.
+- Frontend (`frontend/`): `pnpm install`, `pnpm dev`. Checks: `pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`.
+- Env files: copy `backend/.env.example` → `backend/.env`, `frontend/.env.example` → `frontend/.env.local`.
+
+## Parallel work (multiple Claude sessions)
+Work is split into tracks, each in its own git worktree (`.claude/worktrees/<name>`) with a brief in [docs/modules/](docs/modules/):
+- **Track A — backend core** owns `backend/`: M1 → M2 → M3 → M4, strictly in order.
+- **Track B — infra** owns `infra/`, `.github/workflows/deploy-*.yml`, `docs/deployment.md`: M5.
+- **Track C — frontend** owns `frontend/`: M8a (mock data), later M8b (real API).
+
+Rules:
+- Stay inside your track's folders. If you need a change elsewhere, describe it in your PR instead of making it.
+- **Only Track A writes Alembic migrations.** Before merging, rebase on `main` and make sure there is a single head.
+- [docs/api-contract.md](docs/api-contract.md) is shared: change it only in the same PR as the code that needs it, and call it out in the PR description.
+- Tests in a worktree automatically use their own database (`salon_test_<worktree>`), so parallel runs don't clash.
+- Install dependencies inside the worktree (`uv sync`, `pnpm install`) — worktrees are fresh checkouts.
+- One module per PR. Open the PR with `gh pr create` when the module's "Done when" checklist is met and all checks pass. Don't merge your own PR; the coordinating session reviews and merges.
+- Never run destructive git commands, and never create billable cloud resources without the user's approval in that session.

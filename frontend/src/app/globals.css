@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens from docs/design-file.txt (Vercel-inspired DESIGN.md).
+ * shadcn/ui variables are added on top of these in M8.
+ */
+:root {
+  --ink: #171717;
+  --body: #4d4d4d;
+  --mute: #888888;
+  --hairline: #ebebeb;
+  --hairline-strong: #a1a1a1;
+  --canvas: #ffffff;
+  --canvas-soft: #fafafa;
+  --canvas-soft-2: #f5f5f5;
+  --link: #0070f3;
+
+  /* Appointment status colors */
+  --status-booked: #0070f3;
+  --status-booked-soft: #d3e5ff;
+  --status-pending: #ab570a;
+  --status-pending-soft: #ffefcf;
+  --status-cancelled: #c50000;
+  --status-cancelled-soft: #f7d4d6;
+  --status-completed: #4d4d4d;
+  --status-completed-soft: #f5f5f5;
+  --status-voice: #4c2889;
+  --status-voice-soft: #d8ccf1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ededed;
+    --body: #a1a1a1;
+    --mute: #888888;
+    --hairline: #2e2e2e;
+    --hairline-strong: #454545;
+    --canvas: #0a0a0a;
+    --canvas-soft: #111111;
+    --canvas-soft-2: #1a1a1a;
+    --link: #3291ff;
+
+    --status-booked: #52a8ff;
+    --status-booked-soft: #0a2a4f;
+    --status-pending: #f5a623;
+    --status-pending-soft: #3a2a0a;
+    --status-cancelled: #ff6166;
+    --status-cancelled-soft: #3c1618;
+    --status-completed: #a1a1a1;
+    --status-completed-soft: #1f1f1f;
+    --status-voice: #c4a8ff;
+    --status-voice-soft: #2a1a4a;
+  }
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-mute: var(--mute);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-canvas: var(--canvas);
+  --color-canvas-soft: var(--canvas-soft);
+  --color-canvas-soft-2: var(--canvas-soft-2);
+  --color-link: var(--link);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-card: 0 0 0 1px #00000014, 0px 1px 1px #00000005, 0px 2px 2px #0000000a;
+}
+
+body {
+  background: var(--canvas-soft);
+  color: var(--ink);
+}
+
+::selection {
+  background: #171717;
+  color: #f2f2f2;
+}
