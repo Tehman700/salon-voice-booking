@@ -2,7 +2,9 @@
 
 An AI-powered, multi-location salon booking platform. Customers call a natural-sounding **Retell AI** receptionist that answers questions, checks real-time availability, and books, reschedules, or cancels appointments. Salon owners, managers, and staff run everything from a responsive admin dashboard.
 
-> **Status:** M0 (foundation), M1 (tenancy + auth) and the dashboard (M8a, on sample data) are built. Next: services/schedules, availability and booking in the backend, then the voice agent.
+> **Status:** M0 (foundation), M1 (tenancy + auth), the dashboard (on sample data) and a live demo deployment are done. Next: services/schedules, availability and booking in the backend, then the voice agent.
+
+**Live demo:** dashboard https://salon-voice.vercel.app (sample data) and the real API at its `/docs` page, see [docs/deployment.md](docs/deployment.md).
 
 ## Quick start
 ```bash
@@ -59,6 +61,7 @@ CI runs all of these on every push and pull request.
 ## Documentation
 - [Requirements brief](docs/requirements.md)
 - [Architecture and build plan](docs/architecture.md)
+- [Deployment (Vercel + one small AWS server)](docs/deployment.md)
 - [API contract](docs/api-contract.md)
 - [Module briefs](docs/modules/)
 - [Design system](docs/design-file.txt) and [theme tokens](docs/design-tokens.css)
