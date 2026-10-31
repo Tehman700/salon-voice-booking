@@ -66,6 +66,22 @@ class RetellCall(BaseModel):
     start_timestamp: int | None = None  # unix ms
     end_timestamp: int | None = None
     retell_llm_dynamic_variables: dict[str, Any] = Field(default_factory=dict)
+    # "inbound" (a customer rang the salon) or "outbound" (the salon's line rang the customer).
+    direction: str | None = None
+
+    @property
+    def outbound(self) -> bool:
+        return self.direction == "outbound"
+
+    @property
+    def salon_number(self) -> str | None:
+        """The salon's end of the call: the number dialled in, or the line that dialled out."""
+        return self.from_number if self.outbound else self.to_number
+
+    @property
+    def customer_number(self) -> str | None:
+        """The customer's end of the call."""
+        return self.to_number if self.outbound else self.from_number
 
 
 class FunctionRequest(BaseModel):
@@ -176,10 +192,11 @@ async def resolve_place(
     """Which location is this call for?
 
     In order: a `location_id` written into the tool or webhook URL (one agent per location, the
-    simplest setup), a `location_id` dynamic variable, or the dialled number matched to a
-    location's phone. This is the one lookup that deliberately spans businesses (it is how a call
-    finds its business). The request is already signed by Retell, so these hints are trusted;
-    anything unknown or ambiguous routes nowhere.
+    simplest setup), a `location_id` dynamic variable, or the salon's number on the call (the
+    number dialled in, or the line that dialled out) matched to a location's phone. This is the
+    one lookup that deliberately spans businesses (it is how a call finds its business). The
+    request is already signed by Retell, so these hints are trusted; anything unknown or
+    ambiguous routes nowhere.
     """
     pinned: str | uuid.UUID | None = pinned_location or call.retell_llm_dynamic_variables.get(
         "location_id"
@@ -191,7 +208,7 @@ async def resolve_place(
             return None
         return _place(location) if location and location.is_active else None
 
-    dialled = _digits(call.to_number, None)
+    dialled = _digits(call.salon_number, None)
     if dialled is None:
         return None
     matches = [
@@ -802,9 +819,10 @@ async def run_tool(
     place = await resolve_place(session, request.call, location_id)
     if place is None:
         logger.warning(
-            "Voice call %s could not be routed: to_number %s, dynamic variables %s",
+            "Voice call %s (%s) could not be routed: salon number %s, dynamic variables %s",
             request.call.call_id,
-            "present" if request.call.to_number else "missing",
+            request.call.direction or "inbound",
+            "present" if request.call.salon_number else "missing",
             sorted(request.call.retell_llm_dynamic_variables),
         )
         return fail("unknown_salon", "This phone line isn't linked to a salon.")
@@ -823,7 +841,7 @@ async def run_tool(
         place=place,
         call_log_id=log.id,
         retell_call_id=request.call.call_id,
-        caller_phone=_customer_caller_id(request.call.from_number, place),
+        caller_phone=_customer_caller_id(request.call.customer_number, place),
         now=now or datetime.now(UTC),
     )
     try:

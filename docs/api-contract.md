@@ -248,7 +248,7 @@ Authenticated by the `X-Retell-Signature` header (HMAC of the body with the Rete
 
 Failure codes: `unknown_salon`, `unknown_tool`, `invalid_arguments` (the message names the fields), `invalid_request`, `invalid_time`, `past_date`, `need_phone`, `invalid_phone` (too many or too few digits for the country), `slot_unavailable` (with `alternatives`, same shape as `slots`), `not_found` (reference, name or phone don't match one upcoming booking), `not_active`, `too_late_to_change` (inside the notice period; the voice agent can never override it), `call_mismatch`, `failed`.
 
-Times in arguments and results are the location's local time. Repeating a tool call within the same call is a retry: it returns the original booking instead of creating another. Bookings made by phone have `source: "voice"` and a `call_id`.
+Outbound calls (`call.direction = "outbound"`, the salon's line ringing a customer) are handled the other way round: the salon is found from `from_number` and the customer is `to_number`. Times in arguments and results are the location's local time. Repeating a tool call within the same call is a retry: it returns the original booking instead of creating another. Bookings made by phone have `source: "voice"` and a `call_id`.
 
 ## Built in M1: additions and clarifications
 

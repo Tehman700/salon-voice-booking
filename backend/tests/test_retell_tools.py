@@ -527,6 +527,43 @@ async def test_a_us_line_routes_to_a_pakistani_salon_however_it_is_written(
     assert info["success"] is True and info["phone"] == "+19787343798"
 
 
+async def test_on_an_outbound_call_the_customer_is_the_number_dialled(
+    client: AsyncClient,
+) -> None:
+    """The salon's line rings the customer: routing uses the line, bookings use the customer."""
+    s = await salon(client)
+    outbound = call_object(to=CALLER, from_=SALON_NUMBER, direction="outbound")
+    # No location_id anywhere: routing must come from the salon's own number (from_number).
+    info = await tool(client, "get_salon_info", call=outbound)
+    assert info["success"] is True and info["name"] == "Main Street"
+
+    made = await make_booking_on(client, s, outbound)
+    assert made["success"] is True  # no "need_phone": the number it dialled is the customer's
+    [booking] = await bookings(client, s)
+    assert booking["customer"]["phone"] == CALLER
+    found = await tool(client, "find_my_bookings", call=outbound)
+    assert [b["reference"] for b in found["bookings"]] == [made["reference"]]
+
+
+async def test_an_inbound_call_still_uses_the_caller(client: AsyncClient) -> None:
+    s = await salon(client)
+    inbound = call_object(to=SALON_NUMBER, from_=CALLER, direction="inbound")
+    made = await make_booking_on(client, s, inbound)
+    assert made["success"] is True
+    assert (await bookings(client, s))[0]["customer"]["phone"] == CALLER
+
+
+async def make_booking_on(client: AsyncClient, s: Salon, call: dict[str, Any]) -> dict[str, Any]:
+    args = {
+        "service_id": s.service["id"],
+        "staff_id": s.staff["id"],
+        "date": MONDAY,
+        "time": "10:00",
+        "customer_name": "Ayesha Khan",
+    }
+    return await tool(client, "create_booking", args, call=call)
+
+
 async def test_a_location_can_be_pinned_in_the_tool_url(client: AsyncClient) -> None:
     """One agent per location: no phone number or dynamic variable needed (Retell web tests)."""
     s = await salon(client)
