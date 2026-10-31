@@ -33,7 +33,7 @@ from app.models.booking import Appointment, AppointmentStatus, BookingSource, Cu
 from app.models.call import CallLog, CallOutcome
 from app.models.catalog import LocationService, Service
 from app.models.location import Location
-from app.models.schedule import LocationHours
+from app.models.schedule import LocationClosure, LocationHours
 from app.models.staff import Staff, StaffService
 from app.models.user import Role
 from app.repositories.tenant import AppointmentRepository
@@ -470,6 +470,23 @@ def _spread(items: list[Any], count: int) -> list[Any]:
     return [items[round(i * step)] for i in range(count)]
 
 
+async def _closed_on(ctx: Ctx, day: date) -> bool:
+    """No opening hours that weekday, or a closure (holiday) on that date."""
+    has_hours = await ctx.session.scalar(
+        select(LocationHours.id).where(
+            LocationHours.location_id == ctx.place.location_id,
+            LocationHours.weekday == day.weekday(),
+        )
+    )
+    closure = await ctx.session.scalar(
+        select(LocationClosure.id).where(
+            LocationClosure.location_id == ctx.place.location_id,
+            LocationClosure.closed_on == day,
+        )
+    )
+    return has_hours is None or closure is not None
+
+
 async def check_availability(ctx: Ctx, args: CheckAvailabilityArgs) -> dict[str, Any]:
     today = ctx.now.astimezone(ctx.tz).date()
     if args.date < today:
@@ -502,11 +519,15 @@ async def check_availability(ctx: Ctx, args: CheckAvailabilityArgs) -> dict[str,
     first_day = local[0][1].date()
     on_day = [(s, t) for s, t in local if t.date() == first_day]
     chosen = _spread(on_day, MAX_SLOTS_OFFERED)
+    closed = await _closed_on(ctx, args.date)
     note = (
         ""
         if first_day == args.date
         else (
-            f"Nothing free on {spoken_day(args.date)}; the next day with space is "
+            f"The salon is closed on {spoken_day(args.date)}; the next day with space is "
+            f"{spoken_day(first_day)}. "
+            if closed
+            else f"Nothing free on {spoken_day(args.date)}; the next day with space is "
             f"{spoken_day(first_day)}. "
         )
     )
@@ -520,6 +541,12 @@ async def check_availability(ctx: Ctx, args: CheckAvailabilityArgs) -> dict[str,
 
 async def create_booking(ctx: Ctx, args: CreateBookingArgs) -> dict[str, Any]:
     phone = ctx.phone(args.phone)
+    if phone is None and args.phone:
+        return fail(
+            "invalid_phone",
+            "That phone number has too many or too few digits. Ask the caller to say it again "
+            "slowly, then read it back one digit at a time before booking.",
+        )
     if phone is None:
         return fail("need_phone", "Ask the caller for their phone number.")
     start = _local_start(args.date, args.time, ctx.tz)
@@ -570,6 +597,7 @@ async def create_booking(ctx: Ctx, args: CreateBookingArgs) -> dict[str, Any]:
         when=f"{spoken_day(local.date())} at {spoken_time(local)}",
         price=booking.price_minor // 100,
         currency=booking.currency,
+        phone=booking.customer.phone,
     )
 
 

@@ -8,6 +8,7 @@ import asyncio
 import os
 import sys
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -165,8 +166,14 @@ async def _seed_bookings(session: AsyncSession, business: Business) -> bool:
                 date_to=today + timedelta(days=7),
             ),
         )
-        # Spread out: every 9th slot, a few per stylist.
-        for offset, slot in enumerate(slots[::9][:4]):
+        # One booking a day on alternate days, at a different time each day, so the demo
+        # calendar looks like a normal week rather than one packed day.
+        by_day: dict[object, list[Any]] = {}
+        for candidate in slots:
+            by_day.setdefault(candidate.starts_at.date(), []).append(candidate)
+        days = list(by_day.values())[index % 2 :: 2][:4]
+        chosen = [day[(n * 7 + index * 5) % len(day)] for n, day in enumerate(days)]
+        for offset, slot in enumerate(chosen):
             name, phone = CUSTOMERS[(index + offset) % len(CUSTOMERS)]
             await create_booking(
                 session,

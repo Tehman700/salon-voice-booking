@@ -42,6 +42,11 @@ async def test_seed_books_demo_appointments_once(client: AsyncClient, db: AsyncS
     assert len(items) >= 8
     assert {b["status"] for b in items} == {"booked"}
     assert len({b["reference"] for b in items}) == len(items)
+    # Spread over the week, not crammed into the first open day.
+    days = {b["starts_at"][:10] for b in items}
+    assert len(days) >= 4
+    per_day = max(sum(b["starts_at"][:10] == d for b in items) for d in days)
+    assert per_day <= 4
     await seed_module.seed(db, "demo-pass-123456")
     again = (await client.get("/bookings", headers=owner.headers)).json()["items"]
     assert len(again) == len(items)

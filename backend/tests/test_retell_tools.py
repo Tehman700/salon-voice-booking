@@ -96,7 +96,33 @@ async def test_availability_skips_to_the_next_open_day_and_says_so(client: Async
         client, "check_availability", {"service_id": s.service["id"], "date": SUNDAY}
     )
     assert result["slots_date"] == "2030-01-14"  # Sunday is closed, so Monday
-    assert "Nothing free on Sunday, January 13" in result["message"]
+    assert "closed on Sunday, January 13" in result["message"]
+
+
+async def test_a_full_day_is_called_full_not_closed(client: AsyncClient) -> None:
+    s = await salon(client)
+    for hour in range(10, 19):
+        assert (
+            await book(client, s, at(MONDAY, hour), phone=f"+9230000000{hour}")
+        ).status_code == 201
+    result = await tool(
+        client, "check_availability", {"service_id": s.service["id"], "date": MONDAY}
+    )
+    assert result["slots_date"] == TUESDAY
+    assert "Nothing free on Monday, January 7" in result["message"]
+
+
+async def test_a_holiday_is_called_closed(client: AsyncClient) -> None:
+    s = await salon(client)
+    await client.post(
+        f"/locations/{s.location_id}/closures",
+        json={"date": MONDAY, "reason": "Holiday"},
+        headers=s.owner.headers,
+    )
+    result = await tool(
+        client, "check_availability", {"service_id": s.service["id"], "date": MONDAY}
+    )
+    assert "closed on Monday, January 7" in result["message"]
 
 
 async def test_availability_can_ask_for_a_part_of_the_day(client: AsyncClient) -> None:
@@ -176,6 +202,24 @@ async def test_the_caller_can_give_a_different_number(client: AsyncClient) -> No
     result = await make_booking(client, s, phone="0300 7654321")
     assert result["success"] is True
     assert (await bookings(client, s))[0]["customer"]["phone"] == "+923007654321"
+
+
+@pytest.mark.parametrize("spoken", ["0331592151", "033115921511", "+92331592151"])
+async def test_a_phone_number_with_a_digit_missing_or_extra_is_refused(
+    client: AsyncClient, spoken: str
+) -> None:
+    """From a real test call: the caller said 11 digits, the model passed 10."""
+    s = await salon(client)
+    result = await make_booking(client, s, phone=spoken)
+    assert result["success"] is False and result["error"] == "invalid_phone"
+    assert "one digit at a time" in result["message"]
+    assert await bookings(client, s) == []
+
+
+async def test_the_booked_phone_number_comes_back_for_confirmation(client: AsyncClient) -> None:
+    s = await salon(client)
+    result = await make_booking(client, s, phone="0311 1592151")
+    assert result["success"] is True and result["phone"] == "+923111592151"
 
 
 async def test_booking_without_any_phone_number_asks_for_one(client: AsyncClient) -> None:
