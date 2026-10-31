@@ -47,17 +47,10 @@ Test everything: backend unit + integration against real Postgres, concurrency r
 - Frontend (`frontend/`): `pnpm install`, `pnpm dev`. Checks: `pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`.
 - Env files: copy `backend/.env.example` → `backend/.env`, `frontend/.env.example` → `frontend/.env.local`.
 
-## Parallel work (multiple Claude sessions)
-Work is split into tracks, each in its own git worktree (`.claude/worktrees/<name>`) with a brief in [docs/modules/](docs/modules/):
-- **Track A — backend core** owns `backend/`: M1 → M2 → M3 → M4, strictly in order.
-- **Track B — infra** owns `infra/`, `.github/workflows/deploy-*.yml`, `docs/deployment.md`: M5.
-- **Track C — frontend** owns `frontend/`: M8a (mock data), later M8b (real API).
-
-Rules:
-- Stay inside your track's folders. If you need a change elsewhere, describe it in your PR instead of making it.
-- **Only Track A writes Alembic migrations.** Before merging, rebase on `main` and make sure there is a single head.
-- [docs/api-contract.md](docs/api-contract.md) is shared: change it only in the same PR as the code that needs it, and call it out in the PR description.
-- Tests in a worktree automatically use their own database (`salon_test_<worktree>`), so parallel runs don't clash.
-- Install dependencies inside the worktree (`uv sync`, `pnpm install`) — worktrees are fresh checkouts.
-- One module per PR. Open the PR with `gh pr create` when the module's "Done when" checklist is met and all checks pass. Don't merge your own PR; the coordinating session reviews and merges.
-- Never run destructive git commands, and never create billable cloud resources without the user's approval in that session.
+## Workflow
+Modules are built one at a time, in the order in [docs/architecture.md](docs/architecture.md) (briefs in [docs/modules/](docs/modules/)), one branch and pull request per module.
+- [docs/api-contract.md](docs/api-contract.md) is shared with the frontend: change it in the same PR as the code that needs it.
+- Tenant-scoped data access goes through `app/repositories/tenant.py`; rules like "keep one active owner/location" take `lock_business()` first (see `app/db/locks.py`) to avoid races and deadlocks.
+- Tests use a real Postgres on `127.0.0.1:5544` (use the IP, not `localhost`: on Windows `localhost` adds ~2 s per connection).
+- Backend coverage: `uv run pytest --cov` (greenlet-aware config is in pyproject.toml).
+- Never run destructive git commands, and never create billable cloud resources without the user's approval.
