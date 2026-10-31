@@ -9,6 +9,7 @@ agent can take is idempotent.
 
 import hashlib
 import hmac
+import json
 import logging
 import re
 import time
@@ -49,21 +50,32 @@ def signature_problem(
             return f"timestamp is {int(age)}s away from now (limit {max_age_seconds}s)"
         if hmac.compare_digest(_digest(key, text + timestamp), digest.lower()):
             return None
-        # TEMPORARY diagnostic: does a different formula match? (Removed once Retell is verified.)
-        variants = {
-            "body only": _digest(key, text),
-            "timestamp+body": _digest(key, timestamp + text),
-            "body.timestamp": _digest(key, text + "." + timestamp),
-            "timestamp.body": _digest(key, timestamp + "." + text),
-        }
+        # TEMPORARY diagnostic: does a different formula or body form match? (Removed once Retell
+        # is verified.)
+        forms = {"raw": text}
+        try:
+            parsed = json.loads(text)
+            forms["compact"] = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
+            forms["compact-ascii"] = json.dumps(parsed, separators=(",", ":"))
+            forms["spaced"] = json.dumps(parsed, ensure_ascii=False)
+        except ValueError:
+            pass
         hits = [
-            name for name, value in variants.items() if hmac.compare_digest(value, digest.lower())
+            f"{formula} of {form}"
+            for form, value in forms.items()
+            for formula, payload in (
+                ("body+ts", value + timestamp),
+                ("ts+body", timestamp + value),
+                ("body", value),
+            )
+            if hmac.compare_digest(_digest(key, payload), digest.lower())
         ]
         if hits:
-            return f"digest does not match, but formula {hits} would (algorithm differs)"
+            return f"digest does not match as sent, but {hits} would (algorithm differs)"
+        raw_is_compact = forms.get("compact") == text
         return (
             "digest does not match (wrong API key, or the body changed); "
-            f"digest has {len(digest)} characters"
+            f"digest has {len(digest)} characters; raw body is compact JSON: {raw_is_compact}"
         )
     if hmac.compare_digest(_digest(key, text), signature.lower()):
         return None
