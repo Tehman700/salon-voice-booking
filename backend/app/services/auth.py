@@ -30,6 +30,7 @@ from app.models.location import Location
 from app.models.refresh_token import RefreshToken
 from app.models.user import Role, User
 from app.schemas.auth import AcceptInviteRequest, LoginRequest, Me, MeBusiness, SignupRequest
+from app.services.scheduling import add_default_hours
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,10 @@ async def signup(session: AsyncSession, request: SignupRequest, meta: ClientMeta
             for item in request.locations:
                 slug = unique_slug(slugify(item.name), taken)
                 taken.add(slug)
-                session.add(Location(business_id=business.id, slug=slug, **item.model_dump()))
+                location = Location(business_id=business.id, slug=slug, **item.model_dump())
+                session.add(location)
+                await session.flush()
+                add_default_hours(session, business.id, location.id)
 
             owner = User(
                 business_id=business.id,

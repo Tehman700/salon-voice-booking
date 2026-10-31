@@ -82,6 +82,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+        env:
+          NEXT_PUBLIC_API_MOCKS: "true" # e2e runs on built-in sample data, no backend needed
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
       - if: failure()

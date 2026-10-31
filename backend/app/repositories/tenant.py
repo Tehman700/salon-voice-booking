@@ -14,9 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.core.principal import Principal
+from app.models.catalog import Service
 from app.models.invite import Invite
 from app.models.location import Location
 from app.models.mixins import UUIDPrimaryKey
+from app.models.staff import Staff
 from app.models.user import User
 
 
@@ -63,3 +65,16 @@ class InviteRepository(TenantRepository[Invite]):
     model = Invite
     business_column = Invite.business_id
     location_column = Invite.location_id
+
+
+class ServiceRepository(TenantRepository[Service]):
+    """The service catalog is shared by the whole business, so there is no location restriction."""
+
+    model = Service
+    business_column = Service.business_id
+
+
+class StaffRepository(TenantRepository[Staff]):
+    model = Staff
+    business_column = Staff.business_id
+    location_column = Staff.location_id

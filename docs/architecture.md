@@ -1,6 +1,6 @@
 # Architecture and build plan
 
-Status: **M0 complete.** This records the decisions made so far; it evolves as we build. Module briefs live in [modules/](modules/), the shared API shapes in [api-contract.md](api-contract.md).
+Status: **M0, M1, M2, M3 and the dashboard (on sample data) are built; the demo is deployed.** This records the decisions made so far; it evolves as we build. Module briefs live in [modules/](modules/), the shared API shapes in [api-contract.md](api-contract.md).
 
 ## System overview
 

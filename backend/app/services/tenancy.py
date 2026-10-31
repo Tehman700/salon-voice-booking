@@ -15,6 +15,7 @@ from app.models.location import Location
 from app.repositories.tenant import LocationRepository
 from app.schemas.business import BusinessUpdate
 from app.schemas.location import LocationInput, LocationUpdate
+from app.services.scheduling import add_default_hours
 
 # Columns where an explicit null in a PATCH body means "clear it".
 _NULLABLE_LOCATION_FIELDS = (
@@ -93,6 +94,8 @@ async def create_location(
         # Adding another salon is what turns a single-salon business into a multi-salon one.
         business.location_mode = LocationMode.multiple
         try:
+            await session.flush()  # a lost race on the slug surfaces here
+            add_default_hours(session, business.id, location.id)
             await session.commit()
         except IntegrityError:
             # A concurrent request took the same slug first; recompute it and try again.

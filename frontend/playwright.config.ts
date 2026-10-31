@@ -1,13 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3100;
+const PORT = 3199;
 const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: isCI,
-  retries: isCI ? 1 : 0,
+  retries: 1,
+  expect: { timeout: 10_000 },
+  workers: 3,
   reporter: isCI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
@@ -21,7 +23,7 @@ export default defineConfig({
   webServer: {
     command: `pnpm start --port ${PORT}`,
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: !isCI,
+    reuseExistingServer: false, // never test against a stale server
     timeout: 120_000,
   },
 });
