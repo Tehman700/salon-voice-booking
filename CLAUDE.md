@@ -53,6 +53,12 @@ Test everything: backend unit + integration against real Postgres, concurrency r
 - FullCalendar is v7: plugins come from `@fullcalendar/react/<plugin>`; event colors are `color`/`contrastColor`.
 - E2E tests (`pnpm e2e`) need a production build in demo mode; Playwright starts its own server on port 3199.
 
+## Deployment
+- Demo stack: Vercel (dashboard, `salon-voice` project) + one EC2 server managed with `infra/ec2/*.sh` (AWS CLI + Systems Manager, no SSH). Full guide and costs in [docs/deployment.md](docs/deployment.md).
+- Scripts need Git Bash (they set `MSYS_NO_PATHCONV`). The server clones this repo from GitHub, so push the branch before provisioning or updating.
+- `vercel link` appends to `frontend/.gitignore` and rewrites `frontend/.env.local`; check both after running it.
+- Seeding a deployed database needs `--allow-remote` and an explicit `SEED_PASSWORD`; never use the public default password on a server.
+
 ## Workflow
 Modules are built one at a time, in the order in [docs/architecture.md](docs/architecture.md) (briefs in [docs/modules/](docs/modules/)), one branch and pull request per module.
 - [docs/api-contract.md](docs/api-contract.md) is shared with the frontend: change it in the same PR as the code that needs it.

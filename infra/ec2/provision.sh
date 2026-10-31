@@ -5,13 +5,13 @@
 #
 # Creates: a security group (ports 80/443 only), an IAM role + instance profile (Systems Manager
 # access, no SSH), an Elastic IP, and one small EC2 instance whose first-boot script installs Docker,
-# fetches this repo and starts the stack. Cost: see docs/deployment.md (about $11/month).
+# fetches this repo and starts the stack. Cost: see docs/deployment.md (about $12/month).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 source "$HERE/lib.sh"
 
-TYPE="${INSTANCE_TYPE:-t4g.micro}"
+TYPE="${INSTANCE_TYPE:-t3.micro}"   # t4g.micro (ARM) is ~$1.5/month cheaper when AWS has capacity
 GIT_REF="${GIT_REF:-main}"
 REPO_URL="${REPO_URL:-https://github.com/Tehman700/salon-voice-booking.git}"
 DISK_GB="${DISK_GB:-12}"
@@ -30,13 +30,12 @@ vpc="$(awsq ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs
 [ "$vpc" != "None" ] || { echo "No default VPC in $REGION" >&2; exit 1; }
 azs="$(awsq ec2 describe-instance-type-offerings --location-type availability-zone \
   --filters "Name=instance-type,Values=$TYPE" --query 'InstanceTypeOfferings[].Location' --output text)"
-subnet=""
+subnets=()
 for az in $azs; do
-  subnet="$(awsq ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc" "Name=availability-zone,Values=$az" "Name=default-for-az,Values=true" \
-    --query 'Subnets[0].SubnetId' --output text)"
-  [ "$subnet" != "None" ] && break || subnet=""
+  subnet="$(awsq ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc" "Name=availability-zone,Values=$az" "Name=default-for-az,Values=true"     --query 'Subnets[0].SubnetId' --output text)"
+  [ "$subnet" = "None" ] || subnets+=("$subnet")
 done
-[ -n "$subnet" ] || { echo "No default subnet in an AZ that offers $TYPE" >&2; exit 1; }
+[ ${#subnets[@]} -gt 0 ] || { echo "No default subnet in an AZ that offers $TYPE" >&2; exit 1; }
 
 sg="$(awsq ec2 describe-security-groups --filters "Name=group-name,Values=$SG_NAME" "Name=vpc-id,Values=$vpc" \
   --query 'SecurityGroups[0].GroupId' --output text)"
@@ -84,13 +83,16 @@ userdata="#!/bin/bash
 export REPO_URL='$REPO_URL' GIT_REF='$GIT_REF' SITE_ADDRESS='$site' CORS_ORIGINS='${CORS_ORIGINS:-https://$site}'
 $(tail -n +2 "$HERE/bootstrap.sh")"
 
-id="$(awsq ec2 run-instances --image-id "$ami" --instance-type "$TYPE" --subnet-id "$subnet" \
-  --security-group-ids "$sg" --iam-instance-profile "Name=$ROLE" \
-  --metadata-options HttpTokens=required,HttpEndpoint=enabled \
-  --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=$DISK_GB,VolumeType=gp3,DeleteOnTermination=true,Encrypted=true}" \
-  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]" \
-                       "ResourceType=volume,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]" \
-  --user-data "$userdata" --query 'Instances[0].InstanceId' --output text)"
+# Small instance types are sometimes out of capacity in one zone: try each zone in turn.
+id=""
+for subnet in "${subnets[@]}"; do
+  if id="$(aws ec2 run-instances --image-id "$ami" --instance-type "$TYPE" --subnet-id "$subnet"     --security-group-ids "$sg" --iam-instance-profile "Name=$ROLE"     --metadata-options HttpTokens=required,HttpEndpoint=enabled     --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=$DISK_GB,VolumeType=gp3,DeleteOnTermination=true,Encrypted=true}"     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]"                          "ResourceType=volume,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]"     --user-data "$userdata" --query 'Instances[0].InstanceId' --output text 2>/tmp/run-instances.err | tr -d '')"; then
+    break
+  fi
+  id=""
+  echo "No capacity in subnet $subnet, trying the next zone ($(head -c 120 /tmp/run-instances.err))"
+done
+[ -n "$id" ] || { echo "Could not launch $TYPE in any zone. Try INSTANCE_TYPE=t3a.micro or t4g.micro." >&2; exit 1; }
 echo "Launched $id"
 aws ec2 wait instance-running --instance-ids "$id"
 aws ec2 associate-address --instance-id "$id" --allocation-id "$alloc" >/dev/null
