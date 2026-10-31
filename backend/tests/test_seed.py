@@ -52,3 +52,34 @@ def test_seed_command_creates_then_reports_existing(capsys: pytest.CaptureFixtur
 
     assert asyncio.run(seed_module.main()) == 0
     assert "already exists" in capsys.readouterr().out
+
+
+def _main_in(
+    environment: str, args: list[str], password: str | None, monkeypatch: pytest.MonkeyPatch
+) -> int:
+    settings = get_settings()
+    original = settings.environment
+    settings.environment = environment  # type: ignore[assignment]
+    if password is None:
+        monkeypatch.delenv("SEED_PASSWORD", raising=False)
+    else:
+        monkeypatch.setenv("SEED_PASSWORD", password)
+    try:
+        return asyncio.run(seed_module.main(args))
+    finally:
+        settings.environment = original
+
+
+def test_remote_seeding_needs_the_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _main_in("staging", [], "a-strong-password", monkeypatch) == 1
+
+
+def test_remote_seeding_never_uses_the_public_default_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert _main_in("staging", ["--allow-remote"], None, monkeypatch) == 1
+    assert _main_in("staging", ["--allow-remote"], "short", monkeypatch) == 1
+
+
+def test_remote_seeding_with_the_flag_and_a_password(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _main_in("staging", ["--allow-remote"], "a-strong-password", monkeypatch) == 0

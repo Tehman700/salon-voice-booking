@@ -1,0 +1,68 @@
+# Single-server demo stack: Postgres + migrations + API + HTTPS front door.
+# Run from this folder on the server:  docker compose --env-file /opt/salon/.env up -d --build
+# (the server's bootstrap script does this; see infra/ec2/bootstrap.sh and docs/deployment.md)
+name: salon
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: salon
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set in /opt/salon/.env}
+      POSTGRES_DB: salon
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salon -d salon"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Not published: only the API container can reach the database.
+
+  migrate:
+    build: ../../backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    environment:
+      ENVIRONMENT: staging
+      JWT_SECRET: ${JWT_SECRET:?set in /opt/salon/.env}
+      DATABASE_URL: postgresql+asyncpg://salon:${DB_PASSWORD}@db:5432/salon
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: ../../backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: staging
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql+asyncpg://salon:${DB_PASSWORD}@db:5432/salon
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Emails arrive with the notifications module; until then invitation links are shown in the UI.
+      EXPOSE_INVITE_TOKENS: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # Not published: Caddy is the only way in.
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set in /opt/salon/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

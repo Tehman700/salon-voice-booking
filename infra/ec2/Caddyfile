@@ -1,0 +1,6 @@
+# Caddy obtains and renews a free Let's Encrypt certificate for SITE_ADDRESS automatically
+# (e.g. 13-233-1-2.sslip.io, which resolves to 13.233.1.2) and redirects http -> https.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy api:8000
+}

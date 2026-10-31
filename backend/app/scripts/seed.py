@@ -81,12 +81,22 @@ async def seed(session: AsyncSession, password: str = DEFAULT_PASSWORD) -> bool:
     return True
 
 
-async def main() -> int:
+async def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
     settings = get_settings()
+    password = os.environ.get("SEED_PASSWORD")
     if not settings.is_dev_like:
-        print(f"Refusing to seed demo data in the '{settings.environment}' environment.")
-        return 1
-    password = os.environ.get("SEED_PASSWORD", DEFAULT_PASSWORD)
+        # A deployed database is public-facing: never fall back to the well-known demo password.
+        if "--allow-remote" not in args:
+            print(
+                f"Refusing to seed demo data in the '{settings.environment}' environment "
+                "(pass --allow-remote and set SEED_PASSWORD to do it on purpose)."
+            )
+            return 1
+        if not password or len(password) < 10:
+            print("--allow-remote needs SEED_PASSWORD set to at least 10 characters.")
+            return 1
+    password = password or DEFAULT_PASSWORD
     async with get_sessionmaker()() as session:
         created = await seed(session, password)
     if created:
