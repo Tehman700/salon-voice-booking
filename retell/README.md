@@ -23,18 +23,22 @@ GIT_REF=main bash infra/ec2/update.sh
 
 Locally, put `RETELL_API_KEY=...` in `backend/.env`.
 
-## 2. Tell the backend which salon the phone number belongs to
+## 2. Tell the backend which salon the agent answers for
 
-Each location's **phone** field (Locations in the dashboard, or `PATCH /locations/{id}`) must be the number the caller dials, in international format (for example `+92211234567`). The backend matches the number Retell reports as dialled to the location, whatever spacing it uses. Two locations with the same number are ambiguous and the call is refused, so keep them unique.
+The backend finds the salon for each call in this order:
 
-For a single test agent with no phone number, pin the location instead: add a dynamic variable `location_id` (the location's id) to the agent.
+1. **`?location_id=` in the tool and webhook URLs** (recommended: one agent per location). This always works, including for Retell's browser test calls, which have no phone number. [tools.json](tools.json) already puts `?location_id=LOCATION_ID` on every URL: replace `LOCATION_ID` with the location's id (`GET /locations` lists them).
+2. A `location_id` dynamic variable on the call.
+3. The dialled number matched to a location's **phone** field (international format, e.g. `+92211234567`). Two locations with the same number are ambiguous and the call is refused, so keep them unique. This suits one agent answering several numbers.
+
+Add `?location_id=...` to the webhook URL too, so call logs are filed under the right salon.
 
 ## 3. Create the agent in Retell
 
 1. Create a **Single Prompt** agent. Paste [agent-prompt.md](agent-prompt.md) (everything below the first rule line) as the general prompt.
 2. Add the built-in **End Call** function.
 3. Add each function in [tools.json](tools.json) as a **Custom Function**: name, description, URL (replace `BASE_URL`), and the parameters schema. Set **Payload: args only** to **off**. Keep the timeout short (10 seconds is plenty).
-4. Set the agent's **webhook URL** to `BASE_URL/webhooks/retell` and enable `call_started`, `call_ended` and `call_analyzed`.
+4. Set the agent's **webhook URL** to `BASE_URL/webhooks/retell?location_id=LOCATION_ID` and enable `call_started`, `call_ended` and `call_analyzed`.
 5. Pick a voice and language. Turn on a short "backchannel"/interruption sensitivity you like; nothing in the backend depends on it.
 
 ## 4. Test
@@ -54,8 +58,8 @@ For a single test agent with no phone number, pin the location instead: add a dy
 
 | Symptom | Likely cause |
 |---|---|
-| Tool results say `unknown_salon` | The dialled number doesn't match any location's phone, or two locations share it. |
-| `401 invalid_signature` in the server log | The key on the server isn't the key of the Retell account (or the clock is more than 5 minutes off). |
+| Tool results say `unknown_salon` | The tool URL has no `?location_id=`, and the dialled number doesn't match any location's phone (or two locations share it). The server log says what the call carried. |
+| `401 invalid_signature` | The key on the server isn't the one Retell signs with. Use the workspace's own (webhook-badged) API key, not a newly created one. The server log says why it refused. |
 | `503 voice_not_configured` | `RETELL_API_KEY` isn't set on the server. |
 | Agent never finds the caller's bookings | "Payload: args only" is still on, so caller ID isn't sent. |
 | Agent says it booked but nothing exists | It ignored the rules in the prompt: check the prompt was pasted whole and the tool results show `success: false`. |

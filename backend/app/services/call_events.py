@@ -6,6 +6,7 @@ answering with an error would only make Retell retry it forever.
 """
 
 import logging
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -50,12 +51,14 @@ def _moment(millis: int | None) -> datetime | None:
     return datetime.fromtimestamp(millis / 1000, UTC) if millis else None
 
 
-async def apply_event(session: AsyncSession, event: WebhookEvent) -> str:
+async def apply_event(
+    session: AsyncSession, event: WebhookEvent, location_id: uuid.UUID | None = None
+) -> str:
     """Returns what happened: "recorded", "ignored" (not an event we use) or "unrouted"."""
     if event.event not in HANDLED_EVENTS:
         return "ignored"
     call = event.call
-    place = await resolve_place(session, call)
+    place = await resolve_place(session, call, location_id)
     if place is None:
         logger.warning("Retell call %s could not be routed to a location", call.call_id)
         return "unrouted"

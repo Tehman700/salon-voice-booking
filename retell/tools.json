@@ -1,25 +1,26 @@
 {
-  "_comment": "One entry per custom function to create in the Retell agent. Replace BASE_URL with the API address (for example https://43-205-17-140.sslip.io). In Retell, switch OFF 'Payload: args only' so the request includes the call details; the backend uses them to find the salon and the caller's number.",
+  "_comment": "One entry per custom function to create in the Retell agent. Replace BASE_URL with the API address (for example https://43-205-17-140.sslip.io) and LOCATION_ID with the salon location this agent answers for (the id is in the dashboard URL of the location, or GET /locations). In Retell, switch OFF 'Payload: args only' so the request includes the call details; the backend uses them to find the salon and the caller's number.",
   "base_url": "BASE_URL",
+  "location_id": "LOCATION_ID",
   "tools": [
     {
       "name": "get_salon_info",
       "description": "Get the salon's name, address, phone, opening hours, today's date and the current time. Call this at the very start of every call.",
-      "url": "BASE_URL/retell/functions/get_salon_info",
+      "url": "BASE_URL/retell/functions/get_salon_info?location_id=LOCATION_ID",
       "speak_during_execution": false,
       "parameters": { "type": "object", "properties": {} }
     },
     {
       "name": "list_services",
       "description": "List the services that can be booked, with their ids, length in minutes and price.",
-      "url": "BASE_URL/retell/functions/list_services",
+      "url": "BASE_URL/retell/functions/list_services?location_id=LOCATION_ID",
       "speak_during_execution": false,
       "parameters": { "type": "object", "properties": {} }
     },
     {
       "name": "list_staff",
       "description": "List the stylists, optionally only those who perform a service. Use only when the caller asks for a specific person or asks who is available.",
-      "url": "BASE_URL/retell/functions/list_staff",
+      "url": "BASE_URL/retell/functions/list_staff?location_id=LOCATION_ID",
       "speak_during_execution": false,
       "parameters": {
         "type": "object",
@@ -31,7 +32,7 @@
     {
       "name": "check_availability",
       "description": "Find free appointment times for a service on a date (or the next day that has space). Offer at most three of the returned times, using their 'spoken' wording.",
-      "url": "BASE_URL/retell/functions/check_availability",
+      "url": "BASE_URL/retell/functions/check_availability?location_id=LOCATION_ID",
       "speak_during_execution": true,
       "speak_during_execution_message": "Let me check what's free.",
       "parameters": {
@@ -49,7 +50,7 @@
     {
       "name": "create_booking",
       "description": "Book an appointment. Call ONLY after reading the details back and getting a clear yes. The booking exists only if the result says success is true.",
-      "url": "BASE_URL/retell/functions/create_booking",
+      "url": "BASE_URL/retell/functions/create_booking?location_id=LOCATION_ID",
       "speak_during_execution": true,
       "speak_during_execution_message": "One moment while I book that.",
       "parameters": {
@@ -69,7 +70,7 @@
     {
       "name": "find_my_bookings",
       "description": "List the caller's upcoming bookings. Uses their caller ID; if they booked under another number, pass that number and their name.",
-      "url": "BASE_URL/retell/functions/find_my_bookings",
+      "url": "BASE_URL/retell/functions/find_my_bookings?location_id=LOCATION_ID",
       "speak_during_execution": false,
       "parameters": {
         "type": "object",
@@ -82,7 +83,7 @@
     {
       "name": "reschedule_booking",
       "description": "Move an existing booking to a new time. Call ONLY after agreeing the new time and getting a clear yes. It has happened only if success is true.",
-      "url": "BASE_URL/retell/functions/reschedule_booking",
+      "url": "BASE_URL/retell/functions/reschedule_booking?location_id=LOCATION_ID",
       "speak_during_execution": true,
       "speak_during_execution_message": "One moment while I move that.",
       "parameters": {
@@ -101,7 +102,7 @@
     {
       "name": "cancel_booking",
       "description": "Cancel an existing booking. Call ONLY after reading it back and getting a clear yes. It has happened only if success is true.",
-      "url": "BASE_URL/retell/functions/cancel_booking",
+      "url": "BASE_URL/retell/functions/cancel_booking?location_id=LOCATION_ID",
       "speak_during_execution": true,
       "speak_during_execution_message": "One moment while I cancel that.",
       "parameters": {

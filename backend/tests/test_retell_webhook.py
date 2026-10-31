@@ -215,6 +215,14 @@ class TestEvents:
         await webhook(client, "call_ended", call)
         assert (await self.calls(client))[0]["outcome"] == "abandoned"
 
+    async def test_a_location_in_the_webhook_url_routes_the_call(self, client: AsyncClient) -> None:
+        s = await salon(client)
+        call = call_object("call_pinned", to=None, start_timestamp=START_MS)
+        assert (await webhook(client, "call_started", call)).json() == {"status": "unrouted"}
+        pinned = await webhook(client, "call_started", call, location_id=s.location_id)
+        assert pinned.json() == {"status": "recorded"}
+        assert [c["retell_call_id"] for c in await self.calls(client)] == ["call_pinned"]
+
     async def test_a_technical_failure_is_marked_failed(self, client: AsyncClient) -> None:
         await salon(client)
         call = call_object(

@@ -46,14 +46,27 @@ async def tool(
     args: dict[str, Any] | None = None,
     *,
     call: dict[str, Any] | None = None,
+    location_id: str | None = None,
 ) -> dict[str, Any]:
     """Call a tool the way Retell does and return the JSON the agent would hear."""
     body, headers = signed({"name": name, "args": args or {}, "call": call or call_object()})
-    response = await client.post(f"/retell/functions/{name}", content=body, headers=headers)
+    response = await client.post(
+        f"/retell/functions/{name}",
+        content=body,
+        headers=headers,
+        params={"location_id": location_id} if location_id else None,
+    )
     assert response.status_code == 200, response.text
     return dict(response.json())
 
 
-async def webhook(client: AsyncClient, event: str, call: dict[str, Any]) -> Response:
+async def webhook(
+    client: AsyncClient, event: str, call: dict[str, Any], location_id: str | None = None
+) -> Response:
     body, headers = signed({"event": event, "call": call})
-    return await client.post("/webhooks/retell", content=body, headers=headers)
+    return await client.post(
+        "/webhooks/retell",
+        content=body,
+        headers=headers,
+        params={"location_id": location_id} if location_id else None,
+    )

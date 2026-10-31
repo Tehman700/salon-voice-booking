@@ -11,6 +11,7 @@ dialled), and every tool runs as a location-scoped principal for that location o
 """
 
 import hashlib
+import logging
 import re
 import uuid
 from collections.abc import Awaitable, Callable
@@ -40,6 +41,8 @@ from app.schemas.booking import BookingCreate, BookingUpdate, CustomerIn
 from app.schemas.catalog import AvailabilityRequest
 from app.services import bookings as bookings_service
 from app.services.availability import find_slots
+
+logger = logging.getLogger(__name__)
 
 SEARCH_DAYS = 7
 MAX_SLOTS_OFFERED = 6
@@ -167,14 +170,20 @@ def _digits(raw: str | None, country: str | None) -> str | None:
         return None
 
 
-async def resolve_place(session: AsyncSession, call: RetellCall) -> Place | None:
+async def resolve_place(
+    session: AsyncSession, call: RetellCall, pinned_location: uuid.UUID | None = None
+) -> Place | None:
     """Which location is this call for?
 
-    The agent can pin it with a `location_id` dynamic variable; otherwise the dialled number
-    is matched to a location's phone. This is the one lookup that deliberately spans businesses
-    (it is how a call finds its business). Anything ambiguous or unknown routes nowhere.
+    In order: a `location_id` written into the tool or webhook URL (one agent per location, the
+    simplest setup), a `location_id` dynamic variable, or the dialled number matched to a
+    location's phone. This is the one lookup that deliberately spans businesses (it is how a call
+    finds its business). The request is already signed by Retell, so these hints are trusted;
+    anything unknown or ambiguous routes nowhere.
     """
-    pinned = call.retell_llm_dynamic_variables.get("location_id")
+    pinned: str | uuid.UUID | None = pinned_location or call.retell_llm_dynamic_variables.get(
+        "location_id"
+    )
     if pinned:
         try:
             location = await session.get(Location, uuid.UUID(str(pinned)))
@@ -740,14 +749,25 @@ def _complaint(error: ValidationError) -> str:
 
 
 async def run_tool(
-    session: AsyncSession, tool_name: str, request: FunctionRequest, *, now: datetime | None = None
+    session: AsyncSession,
+    tool_name: str,
+    request: FunctionRequest,
+    *,
+    location_id: uuid.UUID | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Route the call to its location, then run the tool. Never raises for a bad request."""
     tool = TOOLS.get(tool_name)
     if tool is None:
         return fail("unknown_tool", f"There is no tool called {tool_name}.")
-    place = await resolve_place(session, request.call)
+    place = await resolve_place(session, request.call, location_id)
     if place is None:
+        logger.warning(
+            "Voice call %s could not be routed: to_number %s, dynamic variables %s",
+            request.call.call_id,
+            "present" if request.call.to_number else "missing",
+            sorted(request.call.retell_llm_dynamic_variables),
+        )
         return fail("unknown_salon", "This phone line isn't linked to a salon.")
     try:
         log, _ = await get_or_create_call(session, place, request.call)

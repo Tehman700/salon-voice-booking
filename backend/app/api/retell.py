@@ -3,6 +3,7 @@
 Both are authenticated by Retell's request signature, not by a user token.
 """
 
+import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -31,18 +32,22 @@ webhooks_router = APIRouter(prefix="/webhooks", tags=["voice"], responses=error_
         "`{success, message, ...}`: `success` is true only if the backend really did it."
     ),
 )
-async def run_function(tool_name: str, body: BodyDep, session: SessionDep) -> dict[str, Any]:
+async def run_function(
+    tool_name: str, body: BodyDep, session: SessionDep, location_id: uuid.UUID | None = None
+) -> dict[str, Any]:
     try:
         request = voice.FunctionRequest.model_validate_json(body)
     except ValidationError as error:
         raise ValidationFailedError(details={"body": [str(error.errors()[0]["msg"])]}) from None
-    return await voice.run_tool(session, tool_name, request)
+    return await voice.run_tool(session, tool_name, request, location_id=location_id)
 
 
 @webhooks_router.post("/retell", summary="Retell call events (started, ended, analysed)")
-async def retell_webhook(body: BodyDep, session: SessionDep) -> dict[str, str]:
+async def retell_webhook(
+    body: BodyDep, session: SessionDep, location_id: uuid.UUID | None = None
+) -> dict[str, str]:
     try:
         event = call_events.WebhookEvent.model_validate_json(body)
     except ValidationError as error:
         raise ValidationFailedError(details={"body": [str(error.errors()[0]["msg"])]}) from None
-    return {"status": await call_events.apply_event(session, event)}
+    return {"status": await call_events.apply_event(session, event, location_id)}

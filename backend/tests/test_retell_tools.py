@@ -12,7 +12,7 @@ from httpx import AsyncClient
 
 from tests.booking_helpers import MONDAY, SUNDAY, TUESDAY, Salon, at, book, salon, set_notice, soon
 from tests.helpers import build_world, create_service, create_staff, signup
-from tests.retell_helpers import CALLER, SALON_NUMBER, call_object, tool
+from tests.retell_helpers import CALLER, SALON_NUMBER, call_object, sign, tool
 
 pytestmark = pytest.mark.usefixtures("retell_key")
 
@@ -465,6 +465,33 @@ async def test_a_location_can_be_pinned_with_a_dynamic_variable(client: AsyncCli
     assert (await tool(client, "get_salon_info", call=pinned))["success"] is True
     bad = call_object(to=None, retell_llm_dynamic_variables={"location_id": "not-a-uuid"})
     assert (await tool(client, "get_salon_info", call=bad))["error"] == "unknown_salon"
+
+
+async def test_a_location_can_be_pinned_in_the_tool_url(client: AsyncClient) -> None:
+    """One agent per location: no phone number or dynamic variable needed (Retell web tests)."""
+    s = await salon(client)
+    nothing_else = call_object(to=None, from_=None)  # exactly what a browser test call looks like
+    assert (await tool(client, "get_salon_info", call=nothing_else))["error"] == "unknown_salon"
+    pinned = await tool(client, "get_salon_info", call=nothing_else, location_id=s.location_id)
+    assert pinned["success"] is True and pinned["name"] == "Main Street"
+    # The URL wins over a dynamic variable and over the dialled number.
+    other = await signup(client, business_name="Other", email="other@example.com")
+    conflicting = call_object(retell_llm_dynamic_variables={"location_id": other.location_ids[0]})
+    winner = await tool(client, "get_salon_info", call=conflicting, location_id=s.location_id)
+    assert winner["success"] is True
+    bad = await client.post(
+        "/retell/functions/get_salon_info?location_id=nope",
+        content=b"{}",
+        headers={"x-retell-signature": sign(b"{}")},
+    )
+    assert bad.status_code == 422
+    gone = await tool(
+        client,
+        "get_salon_info",
+        call=nothing_else,
+        location_id="00000000-0000-0000-0000-000000000000",
+    )
+    assert gone["error"] == "unknown_salon"
 
 
 async def test_each_line_reaches_only_its_own_salon(client: AsyncClient) -> None:

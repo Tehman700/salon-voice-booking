@@ -9,7 +9,6 @@ agent can take is idempotent.
 
 import hashlib
 import hmac
-import json
 import logging
 import re
 import time
@@ -50,33 +49,7 @@ def signature_problem(
             return f"timestamp is {int(age)}s away from now (limit {max_age_seconds}s)"
         if hmac.compare_digest(_digest(key, text + timestamp), digest.lower()):
             return None
-        # TEMPORARY diagnostic: does a different formula or body form match? (Removed once Retell
-        # is verified.)
-        forms = {"raw": text}
-        try:
-            parsed = json.loads(text)
-            forms["compact"] = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
-            forms["compact-ascii"] = json.dumps(parsed, separators=(",", ":"))
-            forms["spaced"] = json.dumps(parsed, ensure_ascii=False)
-        except ValueError:
-            pass
-        hits = [
-            f"{formula} of {form}"
-            for form, value in forms.items()
-            for formula, payload in (
-                ("body+ts", value + timestamp),
-                ("ts+body", timestamp + value),
-                ("body", value),
-            )
-            if hmac.compare_digest(_digest(key, payload), digest.lower())
-        ]
-        if hits:
-            return f"digest does not match as sent, but {hits} would (algorithm differs)"
-        raw_is_compact = forms.get("compact") == text
-        return (
-            "digest does not match (wrong API key, or the body changed); "
-            f"digest has {len(digest)} characters; raw body is compact JSON: {raw_is_compact}"
-        )
+        return "digest does not match (wrong API key, or the body changed)"
     if hmac.compare_digest(_digest(key, text), signature.lower()):
         return None
     return f"unrecognised signature format ({len(signature)} characters)"
