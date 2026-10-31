@@ -17,7 +17,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 def _test_database_url() -> str:
     url = make_url(
         os.environ.get(
-            "TEST_DATABASE_URL", "postgresql+asyncpg://salon:salon@localhost:5544/salon_test"
+            "TEST_DATABASE_URL", "postgresql+asyncpg://salon:salon@127.0.0.1:5544/salon_test"
         )
     )
     parts = BACKEND_DIR.parts
@@ -33,6 +33,8 @@ TEST_DATABASE_URL = _test_database_url()
 # Must be set before the app reads its settings.
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["ENVIRONMENT"] = "test"
+# Tests call the API directly (no /api proxy in front), so the refresh cookie lives under /auth.
+os.environ["REFRESH_COOKIE_PATH"] = "/auth"
 
 import asyncio  # noqa: E402
 
@@ -40,10 +42,11 @@ import pytest  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
-from sqlalchemy.ext.asyncio import create_async_engine  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine  # noqa: E402
 
 from alembic import command  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
+from app.db.session import get_sessionmaker  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 
@@ -81,6 +84,31 @@ def migrated_database() -> None:
     get_settings.cache_clear()
     asyncio.run(_reset_schema())
     command.upgrade(alembic_config(), "head")
+
+
+async def _truncate_tables() -> None:
+    engine = create_async_engine(TEST_DATABASE_URL)
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE refresh_tokens, invites, users, locations, businesses"
+                " RESTART IDENTITY CASCADE"
+            )
+        )
+    await engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def clean_database(migrated_database: None) -> None:
+    """Every test starts with empty tables."""
+    asyncio.run(_truncate_tables())
+
+
+@pytest.fixture
+async def db() -> AsyncIterator[AsyncSession]:
+    """A session for arranging or inspecting data directly, bypassing the API."""
+    async with get_sessionmaker()() as session:
+        yield session
 
 
 @pytest.fixture

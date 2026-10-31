@@ -19,7 +19,7 @@ The agreement between the backend (FastAPI) and the dashboard (Next.js). The bac
 | Tenant scope | Never sent by the client. The backend derives `business_id` from the access token. Cross-tenant IDs return **404**, not 403 |
 
 ### Errors
-Every non-2xx response:
+Every non-2xx response (validation `details` map each field path to a list of messages):
 ```json
 { "error": { "code": "slot_unavailable", "message": "That time was just booked.", "details": { } } }
 ```
@@ -35,7 +35,7 @@ Every non-2xx response:
 ## Auth (M1)
 
 - **Access token:** JWT, ~15 min, returned in the JSON body; the frontend keeps it in memory and sends `Authorization: Bearer <token>`.
-- **Refresh token:** opaque, ~30 days, set by the backend as an `httpOnly; Secure; SameSite=Lax` cookie named `refresh_token` scoped to path `/auth`. Rotated on every refresh; reuse of an old one revokes the whole session family.
+- **Refresh token:** opaque, ~30 days, set by the backend as an `httpOnly; Secure; SameSite=Lax` cookie named `refresh_token`, scoped to path `/api/auth` (the path the browser sees through the Next.js proxy; configurable with `REFRESH_COOKIE_PATH`). Rotated on every refresh; reuse of an old one revokes the whole session family.
 - Because the browser only talks to the Next.js origin, the cookie is first-party.
 
 | Method | Path | Auth | Body → Response |
@@ -74,12 +74,12 @@ type Me = {
 |---|---|---|---|
 | GET | `/business` | any | Current business |
 | PATCH | `/business` | owner | Name, default timezone, default cancellation window |
-| GET | `/locations` | any | Locations the user can access |
+| GET | `/locations` | any | Locations the user can access → `{items: Location[], next_cursor: null}` |
 | POST | `/locations` | owner | Switches `location_mode` to `multiple` when a 2nd location is added |
 | GET / PATCH | `/locations/{id}` | owner, manager (own) | |
 | DELETE | `/locations/{id}` | owner | Soft-deactivate; cannot remove the last active location |
-| GET | `/users` | owner, manager (own location) | |
-| POST | `/users/invite` | owner, manager (own location, staff role only) | `{email, role, location_id}` → `201 Invite` (email sent in M7; token returned only in non-production) |
+| GET | `/users` | owner, manager (own location) | Cursor-paginated: `?limit=50&cursor=` → `{items: User[], next_cursor}` |
+| POST | `/users/invite` | owner, manager (own location, staff role only) | `{email, role, location_id}` → `201 Invite` (email sent in M7; the response includes `token` only while `EXPOSE_INVITE_TOKENS` is on, which defaults to local/test) |
 | PATCH | `/users/{id}` | owner | Role, location, `is_active` |
 
 ```ts
@@ -173,3 +173,11 @@ type CallLog = {
 };
 ```
 Endpoints: `GET /calls`, `GET /calls/{id}`, `GET /calls/stats?from=&to=&location_id=`.
+
+## Built in M1: additions and clarifications
+
+- `Invite` response: `{id, email, role, location_id, expires_at, token?}`.
+- Extra error codes: `invalid_credentials` (401, also for deactivated users), `invalid_invite` (400), `last_active_location` (409), `last_owner` (409), `location_conflict` / `signup_conflict` (409, rare races), `method_not_allowed` (405).
+- Business users only: a platform admin calling business endpoints gets `403`. `GET /auth/me` works for everyone.
+- Only an owner may change a location's `is_active`; managers may edit their own location otherwise (including its cancellation window).
+- A new access token is not needed after a role change or deactivation: the backend reads the user's current state on every request.

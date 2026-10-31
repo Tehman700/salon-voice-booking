@@ -2,7 +2,7 @@
 
 An AI-powered, multi-location salon booking platform. Customers call a natural-sounding **Retell AI** receptionist that answers questions, checks real-time availability, and books, reschedules, or cancels appointments. Salon owners, managers, and staff run everything from a responsive admin dashboard.
 
-> **Status:** M0 (foundation) complete — backend and frontend skeletons, local Docker stack, CI. M1 (tenancy + auth), M5 (staging deploy), and M8a (dashboard shell) are in progress in parallel.
+> **Status:** M0 (foundation) and M1 (tenancy + auth) complete. Next: dashboard, then services/schedules, availability and booking.
 
 ## Quick start
 ```bash
@@ -12,6 +12,7 @@ cd backend
 cp .env.example .env
 uv sync
 uv run alembic upgrade head
+uv run python -m app.scripts.seed             # demo logins, e.g. owner@demo.example.com
 uv run uvicorn app.main:app --reload          # http://localhost:8000/docs
 
 cd ../frontend
