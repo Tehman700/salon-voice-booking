@@ -100,17 +100,25 @@ PUBLIC_PATHS = {
 }
 
 
-def _protected_routes() -> list[tuple[str, str]]:
-    """Every (method, path) in the OpenAPI schema except the deliberately public ones."""
+# Called by Retell, not by users: protected by a request signature instead of a token.
+SIGNED_PREFIXES = ("/retell/", "/webhooks/")
+
+
+def _routes(*, signed: bool) -> list[tuple[str, str]]:
     paths: dict[str, dict[str, object]] = create_app().openapi()["paths"]
     http_methods = {"get", "post", "put", "patch", "delete"}
     return [
         (method.upper(), path)
         for path, operations in sorted(paths.items())
-        if path not in PUBLIC_PATHS
+        if path not in PUBLIC_PATHS and path.startswith(SIGNED_PREFIXES) == signed
         for method in sorted(operations)
         if method in http_methods
     ]
+
+
+def _protected_routes() -> list[tuple[str, str]]:
+    """Every (method, path) in the OpenAPI schema except the deliberately public ones."""
+    return _routes(signed=False)
 
 
 def test_the_route_guard_actually_covers_the_api() -> None:
@@ -130,3 +138,20 @@ async def test_every_non_public_route_requires_authentication(
     assert "{" not in concrete, f"teach this test how to fill in {path}"
     response = await client.request(method, concrete)
     assert response.status_code == 401, f"{method} {path} is reachable without a token"
+
+
+@pytest.mark.usefixtures("retell_key")
+@pytest.mark.parametrize(("method", "path"), _routes(signed=True), ids=lambda v: str(v))
+async def test_every_signed_route_refuses_unsigned_requests(
+    client: AsyncClient, method: str, path: str
+) -> None:
+    """The voice endpoints trust nobody who cannot sign the request with Retell's key."""
+    concrete = re.sub(r"\{[^}]+\}", "get_salon_info", path)
+    response = await client.request(method, concrete, content=b"{}")
+    assert response.status_code == 401, f"{method} {path} is reachable without a signature"
+    assert response.json()["error"]["code"] == "invalid_signature"
+
+
+def test_the_signed_route_guard_covers_the_voice_api() -> None:
+    assert ("POST", "/webhooks/retell") in _routes(signed=True)
+    assert ("POST", "/retell/functions/{tool_name}") in _routes(signed=True)

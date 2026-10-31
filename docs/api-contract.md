@@ -2,7 +2,7 @@
 
 The agreement between the backend (FastAPI) and the dashboard (Next.js). The backend's OpenAPI spec (`/openapi.json`) becomes the source of truth once an endpoint exists; until then this document is what the frontend mocks against.
 
-**Changing the contract:** edit this file in the same PR as the code change and say so in the PR description. Shapes marked **draft** may still change when their module is built.
+**Changing the contract:** edit this file in the same commit as the code change. Shapes marked **draft** may still change when their module is built.
 
 ## Conventions
 
@@ -184,18 +184,50 @@ type Booking = {
 
 The notice window is the location's `cancellation_window_minutes` if set, else the business's (default 120). Every change is recorded in an append-only audit trail.
 
-## Calls (M6) — draft
+## Calls and the voice agent (M6, built)
 
 ```ts
+type CallOutcome = "booked" | "rescheduled" | "cancelled" | "info_only" | "failed" | "abandoned";
 type CallLog = {
   id: string; retell_call_id: string; location_id: string;
-  from_number: string; started_at: string; ended_at: string | null; duration_seconds: number | null;
-  outcome: "booked" | "rescheduled" | "cancelled" | "info_only" | "failed" | "abandoned";
-  summary: string | null; transcript: { role: "agent" | "user"; text: string }[] | null;
-  booking_id: string | null;
+  from_number: string | null; started_at: string; ended_at: string | null; duration_seconds: number | null;
+  outcome: CallOutcome; summary: string | null;
+  transcript: { role: "agent" | "user"; text: string }[] | null;
+  booking_id: string | null;                                   // the booking this call made, moved or cancelled
 };
+type CallStats = { total: number; by_outcome: Record<CallOutcome, number>; per_day: { date: string; count: number }[] };
 ```
-Endpoints: `GET /calls`, `GET /calls/{id}`, `GET /calls/stats?from=&to=&location_id=`.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/calls` | Newest first. Filters `location_id, outcome, from, to` (`YYYY-MM-DD`, inclusive, the salon's local days), cursor pagination (`limit` up to 200). Owners see all locations, managers their own, staff get `403` |
+| GET | `/calls/stats` | Same filters. `by_outcome` always lists all six outcomes; `per_day` counts by each location's local day |
+| GET | `/calls/{id}` | One call with its transcript; another location or business is `404` |
+
+Outcomes: `booked`, `rescheduled` and `cancelled` are set only when a tool really changed a booking (the latest one wins); a call that did none of those is `info_only`, unless nobody spoke (`abandoned`) or Retell reported an error (`failed`).
+
+### Endpoints Retell calls (not for the dashboard)
+
+Authenticated by the `X-Retell-Signature` header (HMAC of the body with the Retell API key; requests more than 5 minutes old are refused), not by a user token. Without `RETELL_API_KEY` configured they answer `503 voice_not_configured`; a bad signature is `401 invalid_signature`.
+
+**`POST /webhooks/retell`** takes `{event, call}` for `call_started`, `call_ended` and `call_analyzed`, and answers `{status: "recorded" | "ignored" | "unrouted"}`. Events can repeat or arrive out of order; each updates the same row. A call that can't be matched to a location is acknowledged (`unrouted`) so Retell does not retry forever.
+
+**`POST /retell/functions/{tool}`** takes `{name, args, call}` (Retell's "payload: args only" setting must be off). The salon is found from `call.to_number` matched to a location's phone, or from a `location_id` dynamic variable. Every tool answers `200` with `{success: boolean, message: string, ...}`; `success: true` means the database really changed. Failures carry an `error` code instead.
+
+| Tool | Arguments | Success data |
+|---|---|---|
+| `get_salon_info` | none | `name, address, phone, opening_hours[], today, today_spoken, time_now, timezone` |
+| `list_services` | none | `services[{service_id, name, category, minutes, price, currency}]` |
+| `list_staff` | `service_id?` | `staff[{staff_id, name, title}]` |
+| `check_availability` | `service_id, date (YYYY-MM-DD), staff_id?, time_of_day? (morning, afternoon, evening), after? (HH:MM)` | `slots[{date, time (24h HH:MM), spoken, staff_id, staff_name}]` (at most 6, from the first day with space within 7 days), `slots_date` |
+| `create_booking` | `service_id, staff_id, date, time, customer_name, phone?, notes?` | `reference, reference_spoken, service, staff, when, price, currency` |
+| `find_my_bookings` | `phone?, customer_name?` (name required with another number) | `bookings[{reference, reference_spoken, service, staff, staff_id, when}]` |
+| `reschedule_booking` | `reference, customer_name, date, time, phone?, staff_id?` | `reference, when` |
+| `cancel_booking` | `reference, customer_name, phone?, reason?` | `reference` |
+
+Failure codes: `unknown_salon`, `unknown_tool`, `invalid_arguments` (the message names the fields), `invalid_request`, `invalid_time`, `past_date`, `need_phone`, `slot_unavailable` (with `alternatives`, same shape as `slots`), `not_found` (reference, name or phone don't match one upcoming booking), `not_active`, `too_late_to_change` (inside the notice period; the voice agent can never override it), `call_mismatch`, `failed`.
+
+Times in arguments and results are the location's local time. Repeating a tool call within the same call is a retry: it returns the original booking instead of creating another. Bookings made by phone have `source: "voice"` and a `call_id`.
 
 ## Built in M1: additions and clarifications
 

@@ -247,7 +247,7 @@ export type CallLog = {
   id: string;
   retell_call_id: string;
   location_id: string;
-  from_number: string;
+  from_number: string | null;
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;

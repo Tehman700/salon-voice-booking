@@ -1,6 +1,5 @@
 """Rescheduling, cancelling, the notice window, listing, who can see what, and customers."""
 
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -9,7 +8,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.booking import Appointment, AppointmentStatus
-from tests.booking_helpers import MONDAY, TUESDAY, Salon, at, book, free_times, key, salon
+from tests.booking_helpers import (
+    MONDAY,
+    TUESDAY,
+    Salon,
+    at,
+    book,
+    free_times,
+    key,
+    salon,
+    set_notice,
+    soon,
+)
 from tests.helpers import Session, build_world, create_service, create_staff
 
 
@@ -17,29 +27,6 @@ async def make(client: AsyncClient, s: Salon, hour: int, **kw: Any) -> dict[str,
     response = await book(client, s, at(MONDAY, hour), **kw)
     assert response.status_code == 201, response.text
     return dict(response.json())
-
-
-async def soon(client: AsyncClient, s: Salon) -> str:
-    """The first genuinely free start time in the coming days (real clock, so it is 'soon')."""
-    today = datetime.now(UTC).date()
-    response = await client.post(
-        "/availability",
-        json={
-            "location_id": s.location_id,
-            "service_id": s.service["id"],
-            "date_from": (today + timedelta(days=1)).isoformat(),
-            "date_to": (today + timedelta(days=10)).isoformat(),
-        },
-        headers=s.owner.headers,
-    )
-    return str(response.json()["slots"][0]["starts_at"])
-
-
-async def set_notice(client: AsyncClient, s: Salon, minutes: int) -> None:
-    response = await client.patch(
-        "/business", json={"cancellation_window_minutes": minutes}, headers=s.owner.headers
-    )
-    assert response.status_code == 200
 
 
 # --- Rescheduling ---

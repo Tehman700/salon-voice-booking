@@ -40,6 +40,19 @@ class Settings(BaseSettings):
     # None -> invite tokens are returned in API responses only in local/test, until M7 emails them.
     expose_invite_tokens: bool | None = None
 
+    # --- Voice (Retell) ---
+    # Signs Retell's requests (custom functions and webhooks). Unset -> /retell/* and
+    # /webhooks/retell answer 503 instead of trusting anyone.
+    retell_api_key: SecretStr | None = None
+    # How old (seconds) a signed Retell request may be before it is refused as a replay.
+    retell_signature_max_age_seconds: int = 300
+
+    @field_validator("retell_api_key", mode="before")
+    @classmethod
+    def _blank_key_is_unset(cls, value: object) -> object:
+        # docker compose passes RETELL_API_KEY="" when it is not configured.
+        return None if isinstance(value, str) and not value.strip() else value
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:

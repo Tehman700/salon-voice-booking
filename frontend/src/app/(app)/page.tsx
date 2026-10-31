@@ -136,7 +136,7 @@ export default function OverviewPage() {
               {calls.data?.slice(0, 4).map((c) => (
                 <div key={c.id} className="flex items-center justify-between gap-2 py-1.5 text-sm">
                   <span className="min-w-0 truncate text-muted-foreground">
-                    {c.from_number} · {formatDateTime(c.started_at, getLocation(c.location_id)?.timezone ?? timeZone)}
+                    {c.from_number ?? "Unknown"} · {formatDateTime(c.started_at, getLocation(c.location_id)?.timezone ?? timeZone)}
                   </span>
                   <OutcomeBadge outcome={c.outcome} />
                 </div>

@@ -6,7 +6,7 @@ suffix, so parallel sessions never wipe each other's test database.
 
 import os
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 from sqlalchemy.engine import make_url
@@ -41,6 +41,7 @@ import asyncio  # noqa: E402
 import pytest  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
+from pydantic import SecretStr  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine  # noqa: E402
 
@@ -116,3 +117,13 @@ async def client() -> AsyncIterator[AsyncClient]:
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture
+def retell_key() -> Iterator[None]:
+    """Configure the Retell API key so signed voice requests are accepted."""
+    settings = get_settings()
+    original = settings.retell_api_key
+    settings.retell_api_key = SecretStr("test-retell-api-key")
+    yield
+    settings.retell_api_key = original

@@ -1,0 +1,119 @@
+{
+  "_comment": "One entry per custom function to create in the Retell agent. Replace BASE_URL with the API address (for example https://43-205-17-140.sslip.io). In Retell, switch OFF 'Payload: args only' so the request includes the call details; the backend uses them to find the salon and the caller's number.",
+  "base_url": "BASE_URL",
+  "tools": [
+    {
+      "name": "get_salon_info",
+      "description": "Get the salon's name, address, phone, opening hours, today's date and the current time. Call this at the very start of every call.",
+      "url": "BASE_URL/retell/functions/get_salon_info",
+      "speak_during_execution": false,
+      "parameters": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "list_services",
+      "description": "List the services that can be booked, with their ids, length in minutes and price.",
+      "url": "BASE_URL/retell/functions/list_services",
+      "speak_during_execution": false,
+      "parameters": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "list_staff",
+      "description": "List the stylists, optionally only those who perform a service. Use only when the caller asks for a specific person or asks who is available.",
+      "url": "BASE_URL/retell/functions/list_staff",
+      "speak_during_execution": false,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service_id": { "type": "string", "description": "Only stylists who do this service (id from list_services)." }
+        }
+      }
+    },
+    {
+      "name": "check_availability",
+      "description": "Find free appointment times for a service on a date (or the next day that has space). Offer at most three of the returned times, using their 'spoken' wording.",
+      "url": "BASE_URL/retell/functions/check_availability",
+      "speak_during_execution": true,
+      "speak_during_execution_message": "Let me check what's free.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service_id": { "type": "string", "description": "Service id from list_services." },
+          "date": { "type": "string", "description": "The day, as YYYY-MM-DD in the salon's local time. Work it out from today's date in get_salon_info." },
+          "staff_id": { "type": "string", "description": "Only if the caller asked for a particular stylist." },
+          "time_of_day": { "type": "string", "enum": ["morning", "afternoon", "evening"], "description": "Only if the caller stated a preference." },
+          "after": { "type": "string", "description": "Only times at or after this 24-hour time, e.g. 15:30." }
+        },
+        "required": ["service_id", "date"]
+      }
+    },
+    {
+      "name": "create_booking",
+      "description": "Book an appointment. Call ONLY after reading the details back and getting a clear yes. The booking exists only if the result says success is true.",
+      "url": "BASE_URL/retell/functions/create_booking",
+      "speak_during_execution": true,
+      "speak_during_execution_message": "One moment while I book that.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service_id": { "type": "string" },
+          "staff_id": { "type": "string", "description": "staff_id of the chosen slot from check_availability." },
+          "date": { "type": "string", "description": "YYYY-MM-DD, exactly as in the chosen slot." },
+          "time": { "type": "string", "description": "24-hour HH:MM, exactly as in the chosen slot." },
+          "customer_name": { "type": "string", "description": "The caller's name." },
+          "phone": { "type": "string", "description": "Only if the caller wants it under a different number than the one they are calling from." },
+          "notes": { "type": "string", "description": "Special requests the caller mentioned." }
+        },
+        "required": ["service_id", "staff_id", "date", "time", "customer_name"]
+      }
+    },
+    {
+      "name": "find_my_bookings",
+      "description": "List the caller's upcoming bookings. Uses their caller ID; if they booked under another number, pass that number and their name.",
+      "url": "BASE_URL/retell/functions/find_my_bookings",
+      "speak_during_execution": false,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "phone": { "type": "string", "description": "Only if different from the number they are calling from." },
+          "customer_name": { "type": "string", "description": "Required when phone is given." }
+        }
+      }
+    },
+    {
+      "name": "reschedule_booking",
+      "description": "Move an existing booking to a new time. Call ONLY after agreeing the new time and getting a clear yes. It has happened only if success is true.",
+      "url": "BASE_URL/retell/functions/reschedule_booking",
+      "speak_during_execution": true,
+      "speak_during_execution_message": "One moment while I move that.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reference": { "type": "string", "description": "The booking reference from find_my_bookings or given by the caller." },
+          "customer_name": { "type": "string", "description": "The caller's name, used to verify the booking is theirs." },
+          "date": { "type": "string", "description": "New date, YYYY-MM-DD." },
+          "time": { "type": "string", "description": "New time, 24-hour HH:MM." },
+          "phone": { "type": "string", "description": "Only if the booking is under a different number." },
+          "staff_id": { "type": "string", "description": "Only to switch stylist." }
+        },
+        "required": ["reference", "customer_name", "date", "time"]
+      }
+    },
+    {
+      "name": "cancel_booking",
+      "description": "Cancel an existing booking. Call ONLY after reading it back and getting a clear yes. It has happened only if success is true.",
+      "url": "BASE_URL/retell/functions/cancel_booking",
+      "speak_during_execution": true,
+      "speak_during_execution_message": "One moment while I cancel that.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reference": { "type": "string" },
+          "customer_name": { "type": "string", "description": "The caller's name, used to verify the booking is theirs." },
+          "phone": { "type": "string", "description": "Only if the booking is under a different number." },
+          "reason": { "type": "string", "description": "Why, if the caller said." }
+        },
+        "required": ["reference", "customer_name"]
+      }
+    }
+  ]
+}

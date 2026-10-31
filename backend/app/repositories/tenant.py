@@ -15,6 +15,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 
 from app.core.principal import Principal
 from app.models.booking import Appointment, Customer
+from app.models.call import CallLog
 from app.models.catalog import Service
 from app.models.invite import Invite
 from app.models.location import Location
@@ -89,6 +90,12 @@ class AppointmentRepository(TenantRepository[Appointment]):
     model = Appointment
     business_column = Appointment.business_id
     location_column = Appointment.location_id
+
+
+class CallLogRepository(TenantRepository[CallLog]):
+    model = CallLog
+    business_column = CallLog.business_id
+    location_column = CallLog.location_id
 
 
 class CustomerRepository(TenantRepository[Customer]):

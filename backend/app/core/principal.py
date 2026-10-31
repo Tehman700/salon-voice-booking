@@ -12,7 +12,8 @@ class Principal:
     user or changing their role takes effect immediately.
     """
 
-    user_id: uuid.UUID
+    # None for the voice agent, which acts for a location without being a signed-in user.
+    user_id: uuid.UUID | None
     business_id: uuid.UUID
     role: Role
     # Set for manager/staff, None for owners (who may act on every location).

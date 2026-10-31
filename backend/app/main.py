@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, bookings, business, catalog, health, locations, users
+from app.api import auth, bookings, business, calls, catalog, health, locations, retell, users
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 
@@ -33,6 +33,9 @@ def create_app() -> FastAPI:
     app.include_router(catalog.availability_router)
     app.include_router(bookings.bookings_router)
     app.include_router(bookings.customers_router)
+    app.include_router(calls.router)
+    app.include_router(retell.functions_router)
+    app.include_router(retell.webhooks_router)
     return app
 
 

@@ -8,6 +8,7 @@ from app.models.booking import (
     Customer,
 )
 from app.models.business import Business, LocationMode
+from app.models.call import CallLog, CallOutcome
 from app.models.catalog import LocationService, Service
 from app.models.invite import Invite
 from app.models.location import Location
@@ -22,6 +23,8 @@ __all__ = [
     "AppointmentStatus",
     "BookingSource",
     "Business",
+    "CallLog",
+    "CallOutcome",
     "Customer",
     "Invite",
     "Location",

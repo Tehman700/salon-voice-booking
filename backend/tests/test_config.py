@@ -87,3 +87,19 @@ def test_auth_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.refresh_token_ttl_days == 30
     # The browser reaches the API through the Next.js proxy, so the cookie is scoped to /api/auth.
     assert settings.refresh_cookie_path == "/api/auth"
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_a_blank_retell_key_counts_as_not_configured(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("RETELL_API_KEY", value)
+    assert Settings().retell_api_key is None
+
+
+def test_a_retell_key_is_kept_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RETELL_API_KEY", "key_abc123")
+    settings = Settings()
+    assert settings.retell_api_key is not None
+    assert "key_abc123" not in repr(settings)
+    assert settings.retell_api_key.get_secret_value() == "key_abc123"

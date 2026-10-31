@@ -92,7 +92,7 @@ export default function CallsPage() {
               {list.map((c) => (
                 <TableRow key={c.id} className="cursor-pointer" onClick={() => setOpen(c)}>
                   <TableCell className="whitespace-nowrap">{formatDateTime(c.started_at, tz(c))}</TableCell>
-                  <TableCell className="font-mono text-xs">{c.from_number}</TableCell>
+                  <TableCell className="font-mono text-xs">{c.from_number ?? "Unknown"}</TableCell>
                   <TableCell>{scope.getLocation(c.location_id)?.name ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{duration(c.duration_seconds)}</TableCell>
                   <TableCell>
@@ -112,7 +112,7 @@ export default function CallsPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  {open.from_number} <OutcomeBadge outcome={open.outcome} />
+                  {open.from_number ?? "Unknown caller"} <OutcomeBadge outcome={open.outcome} />
                 </DialogTitle>
                 <DialogDescription>
                   {formatDateTime(open.started_at, tz(open))} · {duration(open.duration_seconds)}

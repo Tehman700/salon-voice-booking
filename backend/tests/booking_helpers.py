@@ -1,6 +1,7 @@
 """Shared helpers for the booking tests."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from httpx import AsyncClient, Response
@@ -77,3 +78,26 @@ async def free_times(client: AsyncClient, s: Salon, day: str = MONDAY) -> list[s
         headers=s.owner.headers,
     )
     return [slot["starts_at"] for slot in response.json()["slots"]]
+
+
+async def soon(client: AsyncClient, s: Salon) -> str:
+    """The first genuinely free start time in the coming days (real clock, so it is 'soon')."""
+    today = datetime.now(UTC).date()
+    response = await client.post(
+        "/availability",
+        json={
+            "location_id": s.location_id,
+            "service_id": s.service["id"],
+            "date_from": (today + timedelta(days=1)).isoformat(),
+            "date_to": (today + timedelta(days=10)).isoformat(),
+        },
+        headers=s.owner.headers,
+    )
+    return str(response.json()["slots"][0]["starts_at"])
+
+
+async def set_notice(client: AsyncClient, s: Salon, minutes: int) -> None:
+    response = await client.patch(
+        "/business", json={"cancellation_window_minutes": minutes}, headers=s.owner.headers
+    )
+    assert response.status_code == 200
