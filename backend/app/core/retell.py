@@ -9,6 +9,7 @@ agent can take is idempotent.
 
 import hashlib
 import hmac
+import logging
 import re
 import time
 
@@ -16,6 +17,8 @@ from fastapi import Request
 
 from app.core.config import get_settings
 from app.core.errors import AppError, NotAuthenticatedError
+
+logger = logging.getLogger(__name__)
 
 SIGNATURE_HEADER = "x-retell-signature"
 _VERSIONED = re.compile(r"^v=(\d+),d=([0-9a-fA-F]+)$")
@@ -31,20 +34,31 @@ def _digest(key: str, payload: str) -> str:
     return hmac.new(key.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
-def signature_is_valid(
+def signature_problem(
     body: bytes, signature: str | None, key: str, *, max_age_seconds: int, now: float | None = None
-) -> bool:
+) -> str | None:
+    """Why a signature is not acceptable, or None if it is. The reason holds no secrets."""
     if not signature:
-        return False
+        return "no signature header"
     text = body.decode("utf-8", errors="replace")
     versioned = _VERSIONED.match(signature)
     if versioned:
         timestamp, digest = versioned.groups()
         age = abs((now if now is not None else time.time()) - int(timestamp) / 1000)
         if age > max_age_seconds:
-            return False
-        return hmac.compare_digest(_digest(key, text + timestamp), digest.lower())
-    return hmac.compare_digest(_digest(key, text), signature.lower())
+            return f"timestamp is {int(age)}s away from now (limit {max_age_seconds}s)"
+        if hmac.compare_digest(_digest(key, text + timestamp), digest.lower()):
+            return None
+        return "digest does not match (wrong API key, or the body changed)"
+    if hmac.compare_digest(_digest(key, text), signature.lower()):
+        return None
+    return f"unrecognised signature format ({len(signature)} characters)"
+
+
+def signature_is_valid(
+    body: bytes, signature: str | None, key: str, *, max_age_seconds: int, now: float | None = None
+) -> bool:
+    return signature_problem(body, signature, key, max_age_seconds=max_age_seconds, now=now) is None
 
 
 async def verify_retell_request(request: Request) -> bytes:
@@ -53,11 +67,13 @@ async def verify_retell_request(request: Request) -> bytes:
     if settings.retell_api_key is None:
         raise VoiceNotConfiguredError
     body = await request.body()
-    if not signature_is_valid(
+    problem = signature_problem(
         body,
         request.headers.get(SIGNATURE_HEADER),
         settings.retell_api_key.get_secret_value(),
         max_age_seconds=settings.retell_signature_max_age_seconds,
-    ):
+    )
+    if problem is not None:
+        logger.warning("Refused %s: %s (body %d bytes)", request.url.path, problem, len(body))
         raise NotAuthenticatedError("Invalid signature.", code="invalid_signature")
     return body

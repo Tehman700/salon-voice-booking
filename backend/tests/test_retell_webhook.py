@@ -8,7 +8,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.config import get_settings
-from app.core.retell import signature_is_valid
+from app.core.retell import signature_is_valid, signature_problem
 from tests.booking_helpers import MONDAY, salon
 from tests.retell_helpers import API_KEY, CALLER, call_object, sign, signed, tool, webhook
 
@@ -49,6 +49,23 @@ def test_bad_signatures_are_refused(tamper: str) -> None:
     else:
         header = "v=,d="
     assert not signature_is_valid(body, header or None, API_KEY, max_age_seconds=300, now=now)
+
+
+@pytest.mark.parametrize(
+    ("header", "expected"),
+    [
+        (None, "no signature header"),
+        ("v=1,d=00", "away from now"),
+        (sign(b"{}", key="other", at_ms=NOW_MS), "digest does not match"),
+        ("nonsense", "unrecognised signature format (8 characters)"),
+    ],
+)
+def test_the_refusal_reason_says_what_is_wrong_without_leaking_secrets(
+    header: str | None, expected: str
+) -> None:
+    reason = signature_problem(b"{}", header, API_KEY, max_age_seconds=300, now=NOW_MS / 1000)
+    assert reason is not None and expected in reason
+    assert API_KEY not in reason
 
 
 def test_the_older_unversioned_signature_is_still_understood() -> None:
