@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.core.principal import Principal
+from app.models.booking import Appointment, Customer
 from app.models.catalog import Service
 from app.models.invite import Invite
 from app.models.location import Location
@@ -34,13 +35,17 @@ class TenantRepository[M: UUIDPrimaryKey]:
         self.session = session
         self.principal = principal
 
-    def select(self) -> Select[M]:
+    def scope(self, stmt: Select[Any]) -> Select[Any]:
+        """Restrict any query on this model to what the caller may see."""
         # Read the columns via the class: through an instance they'd act as ORM descriptors.
         cls = type(self)
-        stmt = select(self.model).where(cls.business_column == self.principal.business_id)
+        stmt = stmt.where(cls.business_column == self.principal.business_id)
         if not self.principal.is_owner and cls.location_column is not None:
             stmt = stmt.where(cls.location_column == self.principal.location_id)
         return stmt
+
+    def select(self) -> Select[M]:
+        return self.scope(select(self.model))
 
     async def get(self, row_id: uuid.UUID, *, for_update: bool = False) -> M | None:
         stmt = self.select().where(self.model.id == row_id)
@@ -78,3 +83,16 @@ class StaffRepository(TenantRepository[Staff]):
     model = Staff
     business_column = Staff.business_id
     location_column = Staff.location_id
+
+
+class AppointmentRepository(TenantRepository[Appointment]):
+    model = Appointment
+    business_column = Appointment.business_id
+    location_column = Appointment.location_id
+
+
+class CustomerRepository(TenantRepository[Customer]):
+    """Customers belong to the business; who may see which is decided in the booking service."""
+
+    model = Customer
+    business_column = Customer.business_id

@@ -7,18 +7,25 @@ database. All demo accounts share one password (SEED_PASSWORD, default below).
 import asyncio
 import os
 import sys
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.principal import Principal
 from app.core.security import hash_password
 from app.db.session import get_sessionmaker
+from app.models.booking import Appointment
 from app.models.business import Business, LocationMode
 from app.models.catalog import Service
 from app.models.location import Location
 from app.models.staff import Staff, StaffService, StaffWorkingHours
 from app.models.user import Role, User
+from app.schemas.booking import BookingCreate, CustomerIn
+from app.schemas.catalog import AvailabilityRequest
+from app.services.availability import find_slots
+from app.services.bookings import create_booking
 from app.services.scheduling import (
     DEFAULT_CLOSE,
     DEFAULT_OPEN,
@@ -109,6 +116,74 @@ async def _seed_catalog(session: AsyncSession, business: Business) -> bool:
     return True
 
 
+CUSTOMERS = [
+    ("Ayesha Khan", "+923001230001"),
+    ("Bilal Ahmed", "+923001230002"),
+    ("Fatima Noor", "+923001230003"),
+    ("Hamza Ali", "+923001230004"),
+    ("Zainab Malik", "+923001230005"),
+    ("Usman Tariq", "+923001230006"),
+]
+
+
+async def _seed_bookings(session: AsyncSession, business: Business) -> bool:
+    """Book a few real, valid appointments over the next two weeks so the calendar isn't empty.
+
+    Goes through the same booking service as the app, so every demo booking obeys the real rules.
+    """
+    if await session.scalar(select(Appointment.id).where(Appointment.business_id == business.id)):
+        return False
+    owner = await session.scalar(
+        select(User).where(User.business_id == business.id, User.role == Role.owner)
+    )
+    if owner is None:
+        return False
+    principal = Principal(
+        user_id=owner.id, business_id=business.id, role=Role.owner, location_id=None
+    )
+    today = datetime.now(UTC).date()
+    staff_members = list(
+        await session.scalars(
+            select(Staff).where(Staff.business_id == business.id).order_by(Staff.full_name)
+        )
+    )
+    made = 0
+    for index, member in enumerate(staff_members):
+        link = await session.scalar(
+            select(StaffService).where(StaffService.staff_id == member.id).limit(1)
+        )
+        if link is None:
+            continue
+        slots = await find_slots(
+            session,
+            principal,
+            AvailabilityRequest(
+                location_id=member.location_id,
+                service_id=link.service_id,
+                staff_id=member.id,
+                date_from=today + timedelta(days=1),
+                date_to=today + timedelta(days=7),
+            ),
+        )
+        # Spread out: every 9th slot, a few per stylist.
+        for offset, slot in enumerate(slots[::9][:4]):
+            name, phone = CUSTOMERS[(index + offset) % len(CUSTOMERS)]
+            await create_booking(
+                session,
+                principal,
+                BookingCreate(
+                    location_id=member.location_id,
+                    service_id=link.service_id,
+                    staff_id=member.id,
+                    starts_at=slot.starts_at,
+                    customer=CustomerIn(full_name=name, phone=phone),
+                ),
+                idempotency_key=f"seed-{member.id}-{offset}",
+            )
+            made += 1
+    return made > 0
+
+
 async def seed(session: AsyncSession, password: str = DEFAULT_PASSWORD) -> bool:
     """Create the demo data, or top up what is missing. Returns False if nothing was needed."""
     business = await session.scalar(select(Business).where(Business.slug == BUSINESS_SLUG))
@@ -162,7 +237,9 @@ async def seed(session: AsyncSession, password: str = DEFAULT_PASSWORD) -> bool:
             )
     added_catalog = await _seed_catalog(session, business)
     await session.commit()
-    return created or added_catalog
+    added_bookings = await _seed_bookings(session, business)
+    await session.commit()
+    return created or added_catalog or added_bookings
 
 
 async def main(argv: list[str] | None = None) -> int:

@@ -152,7 +152,7 @@ All roles can read; writes need **owner or manager** (managers only inside their
 
 `Closure` is `{id, date, reason}` (the location is the one in the URL). Services and staff are shared records of one business: another business's ids, and (for managers) other locations' staff, are `404`.
 
-## Availability (M3, built) and bookings (M4, draft)
+## Availability (M3) and bookings (M4), built
 
 ```ts
 type AvailabilityRequest = {
@@ -175,12 +175,14 @@ type Booking = {
 | Method | Path | Notes |
 |---|---|---|
 | POST | `/availability` | **Built.** `AvailabilityRequest` → `{ slots: Slot[] }`. Any role, for locations they can access. Dates are location-local, at most 31 days. Slots are every 15 minutes where the whole service fits inside the location's opening hours and the staff member's working hours, clear of time off and existing appointments (including the service's cleanup buffer); times in the past are never offered. `staff_id` omitted = any staff. A closed, inactive or not-offered situation gives `{slots: []}`, not an error |
-| POST | `/bookings` | Requires `Idempotency-Key` header. `409 slot_unavailable` includes `details.alternatives: Slot[]` |
-| GET | `/bookings` | Filters: `location_id, staff_id, status, from, to, q`. Staff role sees only their own |
-| GET | `/bookings/{id}` | |
-| PATCH | `/bookings/{id}` | Reschedule (`starts_at`, optional `staff_id`) or edit notes |
-| DELETE | `/bookings/{id}` | Cancel; `409 cancellation_window_passed` inside the policy window (owners/managers may override with `?force=true`) |
-| GET | `/customers`, `/customers/{id}` | Includes appointment history |
+| POST | `/bookings` | **Built.** Body `{location_id, service_id, staff_id, starts_at (with timezone), customer: {full_name, phone, email?}, notes?}`. Requires an `Idempotency-Key` header (8-100 chars): repeating a request with the same key returns the original booking with `200` instead of `201`. Phones are normalised to `+<digits>` (a leading `0` takes the country code of the location's country); the customer is found or created by phone within the business. `409 slot_unavailable` carries `details.alternatives: Slot[]` (the nearest free slots). Bookings in the past, outside hours, or for a stylist who does not offer the service are refused. Double booking is also refused by the database itself |
+| GET | `/bookings` | **Built.** Soonest first. Filters: `location_id, staff_id, status, source, from, to, q`; `from`/`to` are dates in the location's timezone (inclusive) or timestamps with a timezone; `q` matches customer name, phone, or reference. Cursor pagination, `limit` up to 500. Owners see everything, managers their location, staff only appointments of the stylist record linked to their user |
+| GET | `/bookings/{id}` | **Built.** Anything the caller cannot see is `404` |
+| PATCH | `/bookings/{id}` | **Built.** `starts_at` and/or `staff_id` reschedules (the new time must be free; the booking's own current time does not count against it), `notes` edits notes, `status: "completed" \| "no_show"` records the outcome (owner/manager only). Only `booked` appointments can change (`409 booking_not_active`). Inside the cancellation window: `409 cancellation_window_passed` with `details.window_minutes`; owners/managers override with `?force=true` (staff get `403`) |
+| DELETE | `/bookings/{id}` | **Built.** Cancel, optional `?reason=`. Frees the time at once; the row is kept with `status: "cancelled"`. Same window and `?force=true` rules as PATCH. Returns the updated `Booking` |
+| GET | `/customers`, `/customers/{id}` | **Built.** Owner/manager only (staff `403`). List has `q` (name or phone) and cursor pagination, with `booking_count` and `last_visit_at` (latest completed visit); managers see customers who booked at their location. Detail adds `bookings`, newest first |
+
+The notice window is the location's `cancellation_window_minutes` if set, else the business's (default 120). Every change is recorded in an append-only audit trail.
 
 ## Calls (M6) — draft
 

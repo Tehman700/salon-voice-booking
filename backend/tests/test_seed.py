@@ -35,6 +35,18 @@ async def test_seed_is_idempotent(db: AsyncSession) -> None:
     assert await db.scalar(select(func.count()).select_from(User)) == 3
 
 
+async def test_seed_books_demo_appointments_once(client: AsyncClient, db: AsyncSession) -> None:
+    await seed_module.seed(db, "demo-pass-123456")
+    owner = await login(client, "owner@demo.example.com", "demo-pass-123456")
+    items = (await client.get("/bookings", headers=owner.headers)).json()["items"]
+    assert len(items) >= 8
+    assert {b["status"] for b in items} == {"booked"}
+    assert len({b["reference"] for b in items}) == len(items)
+    await seed_module.seed(db, "demo-pass-123456")
+    again = (await client.get("/bookings", headers=owner.headers)).json()["items"]
+    assert len(again) == len(items)
+
+
 def test_seed_refuses_to_run_outside_local_environments() -> None:
     settings = get_settings()
     original = settings.environment
@@ -116,9 +128,11 @@ async def test_seeding_tops_up_a_business_that_has_no_catalog_yet(db: AsyncSessi
     """The deployed demo was seeded before services existed; re-running adds them, once."""
     from sqlalchemy import delete
 
+    from app.models.booking import Appointment
     from app.models.catalog import Service
 
     assert await seed_module.seed(db) is True
+    await db.execute(delete(Appointment))
     await db.execute(delete(Service))  # simulate the older database
     await db.commit()
     assert await seed_module.seed(db) is True  # adds the catalog back

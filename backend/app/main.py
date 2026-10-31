@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, business, catalog, health, locations, users
+from app.api import auth, bookings, business, catalog, health, locations, users
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 
@@ -31,6 +31,8 @@ def create_app() -> FastAPI:
     app.include_router(catalog.staff_router)
     app.include_router(catalog.schedule_router)
     app.include_router(catalog.availability_router)
+    app.include_router(bookings.bookings_router)
+    app.include_router(bookings.customers_router)
     return app
 
 

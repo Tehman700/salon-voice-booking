@@ -18,6 +18,7 @@ from app.core.availability import (
 )
 from app.core.errors import NotFoundError
 from app.core.principal import Principal
+from app.models.booking import Appointment, AppointmentStatus
 from app.models.catalog import LocationService
 from app.models.schedule import LocationClosure, LocationHours
 from app.models.staff import Staff, StaffService, StaffTimeOff, StaffWorkingHours
@@ -30,12 +31,26 @@ async def load_busy_intervals(
     staff_ids: list[uuid.UUID],
     window_start: datetime,
     window_end: datetime,
+    *,
+    exclude_appointment_id: uuid.UUID | None = None,
 ) -> dict[uuid.UUID, list[Interval]]:
-    """Existing appointments per staff member, each already extended by its cleanup buffer.
+    """Live appointments per staff member, each extended by its cleanup buffer.
 
-    There are no appointments yet (bookings arrive in the next module), so nothing is busy.
+    Matches the database rule that forbids overlapping appointments exactly: the range is
+    [starts_at, blocked_until).
     """
-    return {}
+    stmt = select(Appointment.staff_id, Appointment.starts_at, Appointment.blocked_until).where(
+        Appointment.staff_id.in_(staff_ids),
+        Appointment.status != AppointmentStatus.cancelled,
+        Appointment.starts_at < window_end,
+        Appointment.blocked_until > window_start,
+    )
+    if exclude_appointment_id is not None:
+        stmt = stmt.where(Appointment.id != exclude_appointment_id)
+    busy: dict[uuid.UUID, list[Interval]] = defaultdict(list)
+    for staff_id, starts_at, blocked_until in await session.execute(stmt):
+        busy[staff_id].append((starts_at, blocked_until))
+    return busy
 
 
 async def find_slots(
@@ -44,6 +59,7 @@ async def find_slots(
     request: AvailabilityRequest,
     *,
     now: datetime | None = None,
+    exclude_appointment_id: uuid.UUID | None = None,
 ) -> list[SlotOut]:
     now = now or datetime.now(UTC)
 
@@ -124,7 +140,9 @@ async def find_slots(
     ):
         time_off[off.staff_id].append((off.starts_at, off.ends_at))
 
-    busy = await load_busy_intervals(session, staff_ids, window_start, window_end)
+    busy = await load_busy_intervals(
+        session, staff_ids, window_start, window_end, exclude_appointment_id=exclude_appointment_id
+    )
 
     results = compute_slots(
         location=LocationSchedule(timezone=tz, opening_hours=dict(opening), closed_dates=closed),
