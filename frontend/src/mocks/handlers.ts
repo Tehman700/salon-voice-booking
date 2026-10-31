@@ -244,6 +244,24 @@ function validationError(details: Record<string, string[]>) {
   return error(422, "validation_error", "Please fix the highlighted fields.", details);
 }
 
+// Same rules as backend/app/core/booking_utils.py: +<digits>, a leading 0 takes the salon's
+// country code, and known countries must have the right number of digits.
+const COUNTRY_CODES: Record<string, string> = { PK: "92", AE: "971", IN: "91", GB: "44", US: "1", CA: "1", SA: "966" };
+const NATIONAL_LENGTHS: Record<string, number[]> = { "92": [10], "971": [8, 9], "91": [10], "44": [10], "1": [10], "966": [8, 9] };
+
+function normalizePhone(raw: string, country: string | null): string | null {
+  let cleaned = raw.replace(/[\s\-().]/g, "");
+  if (cleaned.startsWith("00")) cleaned = "+" + cleaned.slice(2);
+  const code = country ? COUNTRY_CODES[country] : undefined;
+  let digits: string;
+  if (cleaned.startsWith("+")) digits = cleaned.slice(1);
+  else if (cleaned.startsWith("0") && code) digits = code + cleaned.slice(1);
+  else digits = cleaned;
+  if (!/^\d{8,15}$/.test(digits)) return null;
+  if (code && digits.startsWith(code) && !NATIONAL_LENGTHS[code].includes(digits.length - code.length)) return null;
+  return "+" + digits;
+}
+
 export const handlers = [
   // ---- Auth ----
   http.post(`${API}/auth/login`, async ({ request }) => {
@@ -641,6 +659,8 @@ export const handlers = [
       if (Object.keys(details).length) return validationError(details);
 
       const location = tenantLocations(ctx).find((l) => l.id === body.location_id);
+      const phone = location ? normalizePhone(body.customer.phone, location.country ?? null) : null;
+      if (location && !phone) return validationError({ "customer.phone": ["Enter a valid phone number"] });
       const member = ctx.db.staff.find((s) => s.id === body.staff_id && s.business_id === ctx.user.business_id);
       const info = serviceFor(ctx.db, body.service_id, body.location_id);
       if (!location || !member || !info || info.service.business_id !== ctx.user.business_id) return notFound();
@@ -654,11 +674,11 @@ export const handlers = [
         return error(409, "slot_unavailable", "That time was just booked.", { alternatives });
       }
 
-      let customer = ctx.db.customers.find((c) => c.business_id === ctx.user.business_id && c.phone === body.customer.phone);
+      let customer = ctx.db.customers.find((c) => c.business_id === ctx.user.business_id && c.phone === phone);
       if (!customer) {
         customer = {
           business_id: ctx.user.business_id, id: mockId(), full_name: body.customer.full_name.trim(),
-          phone: body.customer.phone.trim(), email: body.customer.email ?? null, notes: null, created_at: nowIso(),
+          phone: phone as string, email: body.customer.email ?? null, notes: null, created_at: nowIso(),
         };
         ctx.db.customers.push(customer);
       }
