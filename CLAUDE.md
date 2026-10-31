@@ -60,9 +60,9 @@ Test everything: backend unit + integration against real Postgres, concurrency r
 - Seeding a deployed database needs `--allow-remote` and an explicit `SEED_PASSWORD`; never use the public default password on a server.
 
 ## Workflow
-Modules are built one at a time, in the order in [docs/architecture.md](docs/architecture.md) (briefs in [docs/modules/](docs/modules/)), one branch and pull request per module.
-- [docs/api-contract.md](docs/api-contract.md) is shared with the frontend: change it in the same PR as the code that needs it.
+Modules are built one at a time, in the order in [docs/architecture.md](docs/architecture.md) (briefs in [docs/modules/](docs/modules/)). **Commit and push straight to `main`**, no pull requests, once the checks pass (`uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest`, and `pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e` for the frontend). CI still runs on every push.
+- [docs/api-contract.md](docs/api-contract.md) is shared with the frontend: change it in the same commit as the code that needs it.
 - Tenant-scoped data access goes through `app/repositories/tenant.py`; rules like "keep one active owner/location" take `lock_business()` first (see `app/db/locks.py`) to avoid races and deadlocks.
 - Tests use a real Postgres on `127.0.0.1:5544` (use the IP, not `localhost`: on Windows `localhost` adds ~2 s per connection).
 - Backend coverage: `uv run pytest --cov` (greenlet-aware config is in pyproject.toml).
-- Never run destructive git commands, and never create billable cloud resources without the user's approval.
+- Never run destructive git commands (no force-push), and never create billable cloud resources without the user's approval.
