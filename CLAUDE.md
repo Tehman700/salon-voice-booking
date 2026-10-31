@@ -36,7 +36,7 @@ Multi-tenant AI salon booking platform: a Retell AI voice receptionist plus an a
 - Geist / Geist Mono; mono only for table headers, eyebrows, technical labels
 - Hairline borders (`#ebebeb`), stacked subtle shadows, ink `#171717` primary
 - Mesh gradient only on auth/marketing screens, never inside the app
-- Status colors: booked blue `#0070f3`, pending amber `#f5a623`, cancelled red `#ee0000`
+- Status colors: booked blue (badge text `#0556b3`, deeper than brand `#0070f3` for 4.5:1 contrast), pending amber `#f5a623`, cancelled red `#ee0000`
 
 ## Testing expectations
 Test everything: backend unit + integration against real Postgres, concurrency race tests, tenant isolation, Retell tool contracts, frontend component tests, Playwright E2E. CI must pass before merge.
@@ -46,6 +46,12 @@ Test everything: backend unit + integration against real Postgres, concurrency r
 - Backend (`backend/`): `uv sync`, `uv run alembic upgrade head`, `uv run uvicorn app.main:app --reload`. Checks: `uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest`.
 - Frontend (`frontend/`): `pnpm install`, `pnpm dev`. Checks: `pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`.
 - Env files: copy `backend/.env.example` → `backend/.env`, `frontend/.env.example` → `frontend/.env.local`.
+
+## Frontend notes
+- `NEXT_PUBLIC_API_MOCKS=true` runs the whole dashboard on MSW sample data (`src/mocks/`); `false` uses the real backend through the `/api/*` proxy. Mock responses must match `docs/api-contract.md` (and the real backend) exactly.
+- Dialog forms are mounted inside their `DialogContent` (state starts fresh each open); don't reset form state in `useEffect` (the `react-hooks/set-state-in-effect` lint rule forbids it).
+- FullCalendar is v7: plugins come from `@fullcalendar/react/<plugin>`; event colors are `color`/`contrastColor`.
+- E2E tests (`pnpm e2e`) need a production build in demo mode; Playwright starts its own server on port 3199.
 
 ## Workflow
 Modules are built one at a time, in the order in [docs/architecture.md](docs/architecture.md) (briefs in [docs/modules/](docs/modules/)), one branch and pull request per module.
