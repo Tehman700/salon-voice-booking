@@ -116,9 +116,15 @@ function BusinessCard({ business }: { business: Business }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(business.name);
   const [windowMinutes, setWindowMinutes] = useState(String(business.cancellation_window_minutes));
+  const [alertsTo, setAlertsTo] = useState(business.notification_email ?? "");
 
   const save = useMutation({
-    mutationFn: () => api.business.update({ name: name.trim(), cancellation_window_minutes: Number(windowMinutes) }),
+    mutationFn: () =>
+      api.business.update({
+        name: name.trim(),
+        cancellation_window_minutes: Number(windowMinutes),
+        notification_email: alertsTo.trim(),
+      }),
     onSuccess: async () => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: ["business"] }), queryClient.invalidateQueries({ queryKey: ["locations"] }), reload()]);
       toast.success("Settings saved");
@@ -126,7 +132,10 @@ function BusinessCard({ business }: { business: Business }) {
     onError: toastError,
   });
 
-  const dirty = name.trim() !== business.name || Number(windowMinutes) !== business.cancellation_window_minutes;
+  const dirty =
+    name.trim() !== business.name ||
+    Number(windowMinutes) !== business.cancellation_window_minutes ||
+    alertsTo.trim() !== (business.notification_email ?? "");
   return (
     <Card>
       <CardHeader>
@@ -140,6 +149,9 @@ function BusinessCard({ business }: { business: Business }) {
           onSubmit={(e) => {
             e.preventDefault();
             if (!name.trim()) return toast.error("Enter a business name.");
+            if (alertsTo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alertsTo.trim())) {
+              return toast.error("Enter a valid email address for booking alerts, or leave it empty.");
+            }
             save.mutate();
           }}
         >
@@ -152,6 +164,20 @@ function BusinessCard({ business }: { business: Business }) {
             <WindowSelect value={windowMinutes} onChange={setWindowMinutes} />
             <p className="text-xs text-muted-foreground">
               Customers can not cancel by phone closer to the appointment than this. Managers can still override it.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="biz-alerts">Booking alerts email</Label>
+            <Input
+              id="biz-alerts"
+              type="email"
+              placeholder="frontdesk@yoursalon.com"
+              value={alertsTo}
+              onChange={(e) => setAlertsTo(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Gets an email for every new, moved or cancelled booking, including phone bookings. Leave empty to turn off.
+              Customers who give an email get their own confirmation and a reminder the day before.
             </p>
           </div>
           <Button type="submit" disabled={!dirty || save.isPending}>

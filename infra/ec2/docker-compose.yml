@@ -44,6 +44,9 @@ services:
       EXPOSE_INVITE_TOKENS: "true"
       # Voice agent. Leave unset until the Retell account exists: /retell/* then answers 503.
       RETELL_API_KEY: ${RETELL_API_KEY:-}
+      # Booking emails through SES (credentials come from the server's IAM role). Unset: queued, not sent.
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Salon Voice}
     depends_on:
       migrate:
         condition: service_completed_successfully

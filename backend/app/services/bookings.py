@@ -53,7 +53,9 @@ from app.schemas.booking import (
     CustomerSummary,
 )
 from app.schemas.catalog import AvailabilityRequest, SlotOut
+from app.services import notifications
 from app.services.availability import find_slots
+from app.services.notifications import BookingChange
 
 ALTERNATIVES_SHOWN = 5
 MAX_REFERENCE_ATTEMPTS = 5
@@ -531,6 +533,7 @@ async def create_booking(
         source,
         {"starts_at": start.isoformat(), "staff_id": str(member.id), "service_id": str(service.id)},
     )
+    await notifications.on_booking(session, appointment, BookingChange.created, now=now)
     await session.commit()
     return await get_booking(session, principal, appointment.id), True
 
@@ -637,6 +640,7 @@ async def update_booking(
             source,
             {"from": before, "to": {"starts_at": start.isoformat(), "staff_id": str(member.id)}},
         )
+        await notifications.on_booking(session, appointment, BookingChange.rescheduled, now=now)
 
     if "notes" in fields:
         appointment.notes = body.notes
@@ -670,6 +674,7 @@ async def cancel_booking(
         source,
         {"reason": appointment.cancellation_reason},
     )
+    await notifications.on_booking(session, appointment, BookingChange.cancelled, now=now)
     await session.commit()  # the time is free again as soon as this commits
     return await get_booking(session, principal, booking_id)
 

@@ -1,9 +1,35 @@
+import asyncio
+import contextlib
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, bookings, business, calls, catalog, health, locations, retell, users
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
+from app.db.session import get_sessionmaker
+from app.services import notifications
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Run the email sender next to the API when a sender address is configured."""
+    sender = notifications.configured_sender()
+    if sender is None:
+        yield
+        return
+    stop = asyncio.Event()
+    task = asyncio.create_task(
+        notifications.run_sender(
+            get_sessionmaker(), sender, stop, interval=get_settings().email_poll_seconds
+        )
+    )
+    try:
+        yield
+    finally:
+        stop.set()
+        await task
 
 
 def create_app() -> FastAPI:
@@ -13,6 +39,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Booking backend for the salon voice platform. Errors always use "
         '`{"error": {"code", "message", "details"}}`.',
+        lifespan=lifespan,
     )
     app.add_middleware(
         CORSMiddleware,

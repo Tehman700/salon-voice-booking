@@ -33,6 +33,8 @@ class Business(UUIDPrimaryKey, Timestamps, Base):
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     location_mode: Mapped[LocationMode] = mapped_column(location_mode_enum, nullable=False)
     default_timezone: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Where the salon's own booking alerts are emailed. NULL -> no alerts.
+    notification_email: Mapped[str | None] = mapped_column(String(254))
     cancellation_window_minutes: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

@@ -101,6 +101,7 @@ type Business = {
   location_mode: "single" | "multiple";
   default_timezone: string;
   cancellation_window_minutes: number;          // default 120
+  notification_email: string | null;            // booking alerts go here (M7); null = off
 };
 
 type User = {
@@ -183,6 +184,17 @@ type Booking = {
 | GET | `/customers`, `/customers/{id}` | **Built.** Owner/manager only (staff `403`). List has `q` (name or phone) and cursor pagination, with `booking_count` and `last_visit_at` (latest completed visit); managers see customers who booked at their location. Detail adds `bookings`, newest first |
 
 The notice window is the location's `cancellation_window_minutes` if set, else the business's (default 120). Every change is recorded in an append-only audit trail.
+
+## Booking emails (M7, built)
+
+No endpoints of their own. Every create, reschedule and cancel (from the dashboard or the voice agent) writes its emails to an outbox in the same transaction, and a sender delivers them through Amazon SES:
+
+| Recipient | When |
+|---|---|
+| The customer, if the booking has `customer.email` | confirmation, "booking moved", "booking cancelled", and a reminder 24 hours before (sent at once if booked less than a day ahead, skipped if booked less than 2 hours ahead; replaced when the booking moves, dropped when it is cancelled) |
+| The business's `notification_email` (`PATCH /business`; `""` turns it off) | an alert for every new, moved or cancelled booking, saying whether it came by phone or from the dashboard |
+
+Editing notes or recording an outcome sends nothing. Failed sends are retried (1, 2, 4, 8 minutes) and given up after 5 attempts. Without `EMAIL_FROM` configured the emails are queued but never sent.
 
 ## Calls and the voice agent (M6, built)
 

@@ -1,6 +1,7 @@
 import uuid
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from app.models.business import LocationMode
 from app.schemas.common import CancellationWindow, Name, Timezone
@@ -15,6 +16,7 @@ class BusinessOut(BaseModel):
     location_mode: LocationMode
     default_timezone: str
     cancellation_window_minutes: int
+    notification_email: str | None
 
 
 class BusinessUpdate(BaseModel):
@@ -23,3 +25,5 @@ class BusinessUpdate(BaseModel):
     name: Name | None = None
     default_timezone: Timezone | None = None
     cancellation_window_minutes: CancellationWindow | None = None
+    # An address for booking alerts; "" turns them off.
+    notification_email: EmailStr | Literal[""] | None = None

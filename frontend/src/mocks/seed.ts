@@ -110,6 +110,7 @@ function buildLumiere(db: MockDb, rand: () => number) {
     location_mode: "multiple",
     default_timezone: "Asia/Karachi",
     cancellation_window_minutes: 120,
+    notification_email: null,
   });
 
   const gulberg = mockId();
@@ -323,7 +324,7 @@ function buildStudioNoor(db: MockDb, rand: () => number) {
   const businessId = mockId();
   db.businesses.push({
     id: businessId, name: "Studio Noor", slug: "studio-noor", location_mode: "single",
-    default_timezone: "Asia/Karachi", cancellation_window_minutes: 120,
+    default_timezone: "Asia/Karachi", cancellation_window_minutes: 120, notification_email: null,
   });
   const locationId = mockId();
   db.locations.push({

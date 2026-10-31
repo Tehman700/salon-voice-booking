@@ -52,6 +52,8 @@ async def update_business(
         business.default_timezone = body.default_timezone
     if body.cancellation_window_minutes is not None:
         business.cancellation_window_minutes = body.cancellation_window_minutes
+    if body.notification_email is not None:
+        business.notification_email = body.notification_email or None
     await session.commit()
     return business
 

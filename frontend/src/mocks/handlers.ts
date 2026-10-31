@@ -297,6 +297,7 @@ export const handlers = [
       location_mode: body.location_mode,
       default_timezone: body.locations[0].timezone,
       cancellation_window_minutes: 120,
+      notification_email: null,
     });
     for (const input of body.locations) {
       db.locations.push({
@@ -369,6 +370,13 @@ export const handlers = [
         if (body.cancellation_window_minutes < 0) return validationError({ cancellation_window_minutes: ["Must be 0 or more"] });
         business.cancellation_window_minutes = body.cancellation_window_minutes;
         refreshEffectiveWindows(ctx.db, business.id);
+      }
+      if (typeof body.notification_email === "string") {
+        const email = body.notification_email.trim();
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return validationError({ notification_email: ["Enter a valid email address"] });
+        }
+        business.notification_email = email || null;
       }
       persist();
       return HttpResponse.json(business);

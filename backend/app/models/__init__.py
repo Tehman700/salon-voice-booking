@@ -12,6 +12,7 @@ from app.models.call import CallLog, CallOutcome
 from app.models.catalog import LocationService, Service
 from app.models.invite import Invite
 from app.models.location import Location
+from app.models.notification import NotificationOutbox, OutboxStatus
 from app.models.refresh_token import RefreshToken
 from app.models.schedule import LocationClosure, LocationHours
 from app.models.staff import Staff, StaffService, StaffTimeOff, StaffWorkingHours
@@ -32,6 +33,8 @@ __all__ = [
     "LocationHours",
     "LocationMode",
     "LocationService",
+    "NotificationOutbox",
+    "OutboxStatus",
     "RefreshToken",
     "Role",
     "Service",

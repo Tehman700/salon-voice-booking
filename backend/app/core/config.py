@@ -40,12 +40,29 @@ class Settings(BaseSettings):
     # None -> invite tokens are returned in API responses only in local/test, until M7 emails them.
     expose_invite_tokens: bool | None = None
 
+    # --- Email (Amazon SES) ---
+    # The verified sender address. Unset -> emails are still queued in the outbox, never sent.
+    email_from: str | None = None
+    email_from_name: str = "Salon Voice"
+    email_region: str = "ap-south-1"
+    # How often the background sender looks for due emails.
+    email_poll_seconds: float = 15
+
     # --- Voice (Retell) ---
     # Signs Retell's requests (custom functions and webhooks). Unset -> /retell/* and
     # /webhooks/retell answer 503 instead of trusting anyone.
     retell_api_key: SecretStr | None = None
     # How old (seconds) a signed Retell request may be before it is refused as a replay.
     retell_signature_max_age_seconds: int = 300
+
+    @field_validator("email_from", mode="before")
+    @classmethod
+    def _blank_sender_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @property
+    def email_from_header(self) -> str:
+        return f"{self.email_from_name} <{self.email_from}>"
 
     @field_validator("retell_api_key", mode="before")
     @classmethod

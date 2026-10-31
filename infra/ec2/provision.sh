@@ -57,6 +57,11 @@ if ! aws iam get-role --role-name "$ROLE" >/dev/null 2>&1; then
   aws iam attach-role-policy --role-name "$ROLE" --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   echo "Created IAM role $ROLE"
 fi
+# Email: allow sending through SES, only as EMAIL_FROM (an SES-verified address) and only here.
+if [ -n "${EMAIL_FROM:-}" ]; then
+  aws iam put-role-policy --role-name "$ROLE" --policy-name salon-send-email --policy-document     "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"ses:SendEmail\",\"ses:SendRawEmail\"],\"Resource\":\"*\",\"Condition\":{\"StringEquals\":{\"ses:FromAddress\":\"$EMAIL_FROM\",\"aws:RequestedRegion\":\"$REGION\"}}}]}"
+  echo "Allowed $ROLE to send email as $EMAIL_FROM"
+fi
 if ! aws iam get-instance-profile --instance-profile-name "$ROLE" >/dev/null 2>&1; then
   aws iam create-instance-profile --instance-profile-name "$ROLE" --tags "Key=Project,Value=$PROJECT_TAG" >/dev/null
   aws iam add-role-to-instance-profile --instance-profile-name "$ROLE" --role-name "$ROLE"
@@ -86,7 +91,8 @@ $(tail -n +2 "$HERE/bootstrap.sh")"
 # Small instance types are sometimes out of capacity in one zone: try each zone in turn.
 id=""
 for subnet in "${subnets[@]}"; do
-  if id="$(aws ec2 run-instances --image-id "$ami" --instance-type "$TYPE" --subnet-id "$subnet"     --security-group-ids "$sg" --iam-instance-profile "Name=$ROLE"     --metadata-options HttpTokens=required,HttpEndpoint=enabled     --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=$DISK_GB,VolumeType=gp3,DeleteOnTermination=true,Encrypted=true}"     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]"                          "ResourceType=volume,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]"     --user-data "$userdata" --query 'Instances[0].InstanceId' --output text 2>/tmp/run-instances.err | tr -d '')"; then
+  if id="$(aws ec2 run-instances --image-id "$ami" --instance-type "$TYPE" --subnet-id "$subnet"     --security-group-ids "$sg" --iam-instance-profile "Name=$ROLE"     --metadata-options HttpTokens=required,HttpEndpoint=enabled,HttpPutResponseHopLimit=2     --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=$DISK_GB,VolumeType=gp3,DeleteOnTermination=true,Encrypted=true}"     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]"                          "ResourceType=volume,Tags=[{Key=Name,Value=$NAME},{Key=Project,Value=$PROJECT_TAG}]"     --user-data "$userdata" --query 'Instances[0].InstanceId' --output text 2>/tmp/run-instances.err | tr -d '
+')"; then
     break
   fi
   id=""

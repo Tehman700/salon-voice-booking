@@ -72,11 +72,15 @@ export type Business = {
   location_mode: LocationMode;
   default_timezone: string;
   cancellation_window_minutes: number;
+  notification_email: string | null;
 };
 
 export type BusinessPatch = Partial<
   Pick<Business, "name" | "default_timezone" | "cancellation_window_minutes">
->;
+> & {
+  // An address for booking alerts; "" turns them off.
+  notification_email?: string;
+};
 
 export type User = {
   id: string;
