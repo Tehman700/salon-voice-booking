@@ -2,7 +2,7 @@
 
 An AI-powered, multi-location salon booking platform. Customers call a natural-sounding **Retell AI** receptionist that answers questions, checks real-time availability, and books, reschedules, or cancels appointments. Salon owners, managers, and staff run everything from a responsive admin dashboard.
 
-> **Status:** M0 (foundation), M1 (tenancy + auth), the dashboard (on sample data) and a live demo deployment are done. Next: services/schedules, availability and booking in the backend, then the voice agent.
+> **Status:** done: foundation, tenancy + auth, the dashboard, a live demo deployment, and the service catalog, staff, schedules and availability engine. Next: booking with double-booking prevention, then the voice agent.
 
 **Live demo:** dashboard https://salon-voice.vercel.app (sample data) and the real API at its `/docs` page, see [docs/deployment.md](docs/deployment.md).
 

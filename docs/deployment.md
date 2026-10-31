@@ -17,7 +17,7 @@ Browser ──https──▶ Vercel (Next.js dashboard)
 | Part | Where | Notes |
 |---|---|---|
 | Dashboard | Vercel project `salon-voice` → https://salon-voice.vercel.app | Demo mode (`NEXT_PUBLIC_API_MOCKS=true`): every page works on sample data |
-| API | EC2 `salon-demo` behind Caddy → `https://<ip>.sslip.io` (docs at `/docs`) | Real backend: sign-in, business, locations, team |
+| API | EC2 `salon-demo` behind Caddy → `https://<ip>.sslip.io` (docs at `/docs`) | Real backend: sign-in, business, locations, team, services, staff, schedules, availability |
 | Database | PostgreSQL in a Docker volume on the same server | Single copy, no backups |
 | Code | GitHub `Tehman700/salon-voice-booking` | The server pulls from here |
 
@@ -56,7 +56,7 @@ Secrets (`DB_PASSWORD`, `JWT_SECRET`) are generated on the server at first boot 
 - **One server, no failover.** A reboot interrupts the API for about a minute; containers restart by themselves.
 - **No login rate limiting** yet, and the API docs are public. Fine for a demo, not for real customers.
 - **No email.** Invitation links are shown in the Team page until the notifications module exists.
-- **The dashboard is in demo mode** on Vercel because services, staff, bookings, customers and calls don't exist in the backend yet. As each backend module lands, the matching dashboard pages switch to real data, and `NEXT_PUBLIC_API_MOCKS` can be turned off.
+- **The dashboard is in demo mode** on Vercel because bookings, customers and calls don't exist in the backend yet (the Services and Staff pages already work against the real API when the switch is off). As each backend module lands, `NEXT_PUBLIC_API_MOCKS` can be turned off.
 
 ## Going to production
 Keep the same code; change the hosting: ECS Fargate (or a larger EC2 behind a load balancer) for the API, RDS PostgreSQL with automated backups, a real domain with ACM/CloudFront, Secrets Manager, GitHub OIDC deploys instead of the `update.sh` script, and rate limiting in front of `/auth/*`.
