@@ -2,7 +2,7 @@
 
 An AI-powered, multi-location salon booking platform. Customers call a natural-sounding **Retell AI** receptionist that answers questions, checks real-time availability, and books, reschedules, or cancels appointments. Salon owners, managers, and staff run everything from a responsive admin dashboard.
 
-> **Status:** M0 (foundation) and M1 (tenancy + auth) complete. Next: dashboard, then services/schedules, availability and booking.
+> **Status:** M0 (foundation), M1 (tenancy + auth) and the dashboard (M8a, on sample data) are built. Next: services/schedules, availability and booking in the backend, then the voice agent.
 
 ## Quick start
 ```bash
@@ -21,6 +21,8 @@ pnpm install
 pnpm dev                                      # http://localhost:3000
 ```
 
+The dashboard starts in **demo mode** (`NEXT_PUBLIC_API_MOCKS=true` in `frontend/.env.local`): it runs on built-in sample data, so every page works without the backend. Sign in with the demo buttons on the login page. Set it to `false` to use the real backend (sign-in, business, locations and team are real today; the rest arrives with later backend modules).
+
 Run everything in containers instead: `docker compose up --build`.
 
 ### Checks
@@ -30,6 +32,13 @@ Run everything in containers instead: `docker compose up --build`.
 | Frontend | `pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e` |
 
 CI runs all of these on every push and pull request.
+
+## Dashboard
+| | |
+|---|---|
+| ![Overview](docs/screenshots/overview.png) | ![Calendar](docs/screenshots/calendar.png) |
+| ![Bookings](docs/screenshots/bookings.png) | ![New booking](docs/screenshots/new-booking.png) |
+| ![Voice calls](docs/screenshots/calls.png) | ![Mobile](docs/screenshots/mobile-overview.png) |
 
 ## Highlights
 - **Voice receptionist** — Retell AI custom functions backed by real booking APIs; never confirms an action the backend didn't confirm.

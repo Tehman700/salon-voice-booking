@@ -1,10 +1,21 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fullcalendar/react/skeleton.css";
+
+/* Dark mode is class-based so the toggle can override the system preference. */
+@custom-variant dark (&:is(.dark *));
 
 /*
- * Design tokens from docs/design-file.txt (Vercel-inspired DESIGN.md).
- * shadcn/ui variables are added on top of these in M8.
+ * Design tokens from docs/design-file.txt (Vercel-inspired DESIGN.md) and the shadcn/ui theme in
+ * docs/design-tokens.css, converted from bare HSL triplets to hsl() values for Tailwind v4.
+ * Deviations from design-tokens.css, following the root CLAUDE.md design rules:
+ *   - page background is canvas-soft and cards are pure white (design-file "Surface")
+ *   - border/input use the #ebebeb hairline
+ *   - accent is a subtle gray, because shadcn uses it for hover/focus fills on menu items
  */
 :root {
+  /* Raw design tokens */
   --ink: #171717;
   --body: #4d4d4d;
   --mute: #888888;
@@ -15,8 +26,8 @@
   --canvas-soft-2: #f5f5f5;
   --link: #0070f3;
 
-  /* Appointment status colors */
-  --status-booked: #0070f3;
+  /* Appointment status colors (booked blue, pending amber, cancelled red) */
+  --status-booked: #0556b3; /* deeper than brand blue #0070f3 so badge text meets 4.5:1 contrast */
   --status-booked-soft: #d3e5ff;
   --status-pending: #ab570a;
   --status-pending-soft: #ffefcf;
@@ -26,31 +37,107 @@
   --status-completed-soft: #f5f5f5;
   --status-voice: #4c2889;
   --status-voice-soft: #d8ccf1;
+
+  /* shadcn/ui theme */
+  --background: hsl(0 0% 98%);
+  --foreground: hsl(0 0% 9%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 9%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 9%);
+  --primary: hsl(0 0% 9%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(0 0% 94.9%);
+  --secondary-foreground: hsl(0 0% 3.9%);
+  --muted: hsl(0 0% 94.9%);
+  --muted-foreground: hsl(0 0% 41.6%);
+  --accent: hsl(0 0% 96%);
+  --accent-foreground: hsl(0 0% 9%);
+  --destructive: hsl(0 100% 46.7%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(0 0% 92.2%);
+  --input: hsl(0 0% 92.2%);
+  --ring: hsl(0 0% 9%);
+  --sidebar: hsl(0 0% 100%);
+  --sidebar-foreground: hsl(0 0% 9%);
+  --sidebar-primary: hsl(0 0% 9%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(0 0% 96%);
+  --sidebar-accent-foreground: hsl(0 0% 9%);
+  --sidebar-border: hsl(0 0% 92.2%);
+  --sidebar-ring: hsl(0 0% 9%);
+  --chart-1: hsl(0 0% 9%);
+  --chart-2: hsl(0 0% 81.6%);
+  --chart-3: hsl(0 0% 7.8%);
+  --chart-4: hsl(0 0% 55.3%);
+  --chart-5: hsl(0 0% 6.7%);
+  --radius: 6px;
+
+  --shadow-card: 0 0 0 1px #00000014, 0px 1px 1px #00000005, 0px 2px 2px #0000000a;
+  --shadow-modal:
+    0 0 0 1px #00000014, 0px 1px 1px #00000005, 0px 8px 16px -4px #0000000a,
+    0px 24px 32px -8px #0000000f;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #ededed;
-    --body: #a1a1a1;
-    --mute: #888888;
-    --hairline: #2e2e2e;
-    --hairline-strong: #454545;
-    --canvas: #0a0a0a;
-    --canvas-soft: #111111;
-    --canvas-soft-2: #1a1a1a;
-    --link: #3291ff;
+.dark {
+  --ink: #ededed;
+  --body: #a1a1a1;
+  --mute: #888888;
+  --hairline: #2e2e2e;
+  --hairline-strong: #454545;
+  --canvas: #0a0a0a;
+  --canvas-soft: #111111;
+  --canvas-soft-2: #1a1a1a;
+  --link: #3291ff;
 
-    --status-booked: #52a8ff;
-    --status-booked-soft: #0a2a4f;
-    --status-pending: #f5a623;
-    --status-pending-soft: #3a2a0a;
-    --status-cancelled: #ff6166;
-    --status-cancelled-soft: #3c1618;
-    --status-completed: #a1a1a1;
-    --status-completed-soft: #1f1f1f;
-    --status-voice: #c4a8ff;
-    --status-voice-soft: #2a1a4a;
-  }
+  --status-booked: #52a8ff;
+  --status-booked-soft: #0a2a4f;
+  --status-pending: #f5a623;
+  --status-pending-soft: #3a2a0a;
+  --status-cancelled: #ff6166;
+  --status-cancelled-soft: #3c1618;
+  --status-completed: #a1a1a1;
+  --status-completed-soft: #1f1f1f;
+  --status-voice: #c4a8ff;
+  --status-voice-soft: #2a1a4a;
+
+  --background: hsl(60 4.5% 8.6%);
+  --foreground: hsl(60 4.8% 95.9%);
+  --card: hsl(60 2.9% 13.3%);
+  --card-foreground: hsl(60 4.8% 95.9%);
+  --popover: hsl(60 2.9% 13.3%);
+  --popover-foreground: hsl(60 4.8% 95.9%);
+  --primary: hsl(60 4.8% 95.9%);
+  --primary-foreground: hsl(0 0% 9%);
+  --secondary: hsl(60 2.3% 17.3%);
+  --secondary-foreground: hsl(0 0% 100%);
+  --muted: hsl(60 2.5% 15.7%);
+  --muted-foreground: hsl(60 0.5% 64%);
+  --accent: hsl(60 2.3% 17.3%);
+  --accent-foreground: hsl(60 4.8% 95.9%);
+  --destructive: hsl(0 84.2% 60.2%);
+  --destructive-foreground: hsl(0 0% 3.9%);
+  --border: hsl(60 1.7% 23.1%);
+  --input: hsl(60 1.7% 23.1%);
+  --ring: hsl(0 0% 64%);
+  --sidebar: hsl(60 3.2% 12.2%);
+  --sidebar-foreground: hsl(60 4.8% 95.9%);
+  --sidebar-primary: hsl(60 4.8% 95.9%);
+  --sidebar-primary-foreground: hsl(0 0% 9%);
+  --sidebar-accent: hsl(60 2.3% 17.3%);
+  --sidebar-accent-foreground: hsl(60 4.8% 95.9%);
+  --sidebar-border: hsl(60 1.7% 23.1%);
+  --sidebar-ring: hsl(0 0% 48.2%);
+  --chart-1: hsl(0 0% 90%);
+  --chart-2: hsl(0 0% 32.5%);
+  --chart-3: hsl(60 2.3% 17.3%);
+  --chart-4: hsl(0 0% 48.2%);
+  --chart-5: hsl(0 0% 18.8%);
+
+  --shadow-card: 0 0 0 1px #ffffff14, 0px 1px 1px #00000040, 0px 2px 2px #00000040;
+  --shadow-modal:
+    0 0 0 1px #ffffff1f, 0px 1px 1px #00000040, 0px 8px 16px -4px #00000066,
+    0px 24px 32px -8px #00000080;
 }
 
 @theme inline {
@@ -64,22 +151,117 @@
   --color-canvas-soft-2: var(--canvas-soft-2);
   --color-link: var(--link);
 
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --font-sans: var(--font-geist-sans);
+  --font-heading: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
+  /* Radius scale from design-file.txt: 6px is the in-app control radius. */
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --shadow-card: 0 0 0 1px #00000014, 0px 1px 1px #00000005, 0px 2px 2px #0000000a;
+  --shadow-card: var(--shadow-card);
+  --shadow-modal: var(--shadow-modal);
 }
 
-body {
-  background: var(--canvas-soft);
-  color: var(--ink);
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  ::selection {
+    background: #171717;
+    color: #f2f2f2;
+  }
+  .dark ::selection {
+    background: #ededed;
+    color: #171717;
+  }
 }
 
-::selection {
-  background: #171717;
-  color: #f2f2f2;
+/* Mono eyebrow / table-header voice (caption-mono). */
+@utility eyebrow {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--muted-foreground);
+}
+
+/* FullCalendar v7 skeleton theming, mapped onto our tokens. */
+.fc-salon {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--card);
+  --fc-neutral-bg-color: var(--muted);
+  --fc-today-bg-color: color-mix(in oklab, var(--status-booked) 6%, transparent);
+  --fc-now-indicator-color: var(--status-cancelled);
+  font-size: 13px;
+}
+
+/* FullCalendar: map its palette onto our design tokens (works for light and dark via the vars). */
+.salon-calendar {
+  --fc-classic-primary: var(--primary);
+  --fc-classic-primary-foreground: var(--primary-foreground);
+  --fc-classic-background: var(--card);
+  --fc-classic-foreground: var(--foreground);
+  --fc-classic-muted-foreground: var(--muted-foreground);
+  --fc-classic-faint-foreground: var(--muted-foreground);
+  --fc-classic-border: var(--border);
+  --fc-classic-strong-border: var(--hairline-strong);
+  --fc-classic-faint: color-mix(in oklab, var(--foreground) 4%, transparent);
+  --fc-classic-muted: color-mix(in oklab, var(--foreground) 8%, transparent);
+  --fc-classic-strong: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --fc-classic-today: color-mix(in oklab, var(--link) 7%, transparent);
+  --fc-classic-now: var(--status-cancelled);
+  --fc-classic-button: var(--primary);
+  --fc-classic-button-border: var(--primary);
+  --fc-classic-button-strong: var(--primary);
+  --fc-classic-button-strong-border: var(--primary);
+  --fc-classic-button-foreground: var(--primary-foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
