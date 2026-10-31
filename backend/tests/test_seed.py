@@ -1,4 +1,5 @@
 import asyncio
+import secrets
 
 import pytest
 from httpx import AsyncClient
@@ -71,7 +72,7 @@ def _main_in(
 
 
 def test_remote_seeding_needs_the_flag(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert _main_in("staging", [], "a-strong-password", monkeypatch) == 1
+    assert _main_in("staging", [], secrets.token_urlsafe(16), monkeypatch) == 1
 
 
 def test_remote_seeding_never_uses_the_public_default_password(
@@ -82,4 +83,4 @@ def test_remote_seeding_never_uses_the_public_default_password(
 
 
 def test_remote_seeding_with_the_flag_and_a_password(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert _main_in("staging", ["--allow-remote"], "a-strong-password", monkeypatch) == 0
+    assert _main_in("staging", ["--allow-remote"], secrets.token_urlsafe(16), monkeypatch) == 0
