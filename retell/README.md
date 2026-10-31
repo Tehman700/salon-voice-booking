@@ -47,6 +47,33 @@ Add `?location_id=...` to the webhook URL too, so call logs are filed under the 
 - In the dashboard, the booking appears on the calendar with source **voice**, and the call appears on the **Calls** page with its transcript and outcome.
 - Try the unhappy paths: a time that is already taken, a cancel inside the notice period, a wrong name. The agent must say it could not do it.
 
+## 5. Connect a real phone number (Twilio SIP trunk)
+
+The demo line is a Twilio US number connected to Retell over SIP. Credentials stay in Twilio and Retell, never in this repo.
+
+1. **Twilio:** buy a number, create an **Elastic SIP Trunk**, set its origination URI to `sip:sip.retellai.com`, give termination a credential list (`<SIP_USERNAME>` / `<SIP_PASSWORD>`), and attach the number to the trunk.
+2. **Retell:** Phone Numbers → **Connect via SIP trunking** (custom telephony), enter the number in E.164 (`+1XXXXXXXXXX`) and the termination details, then pick the agent as the number's **inbound agent**.
+3. **Backend:** set the location's **phone** to the same number (dashboard → Settings → the location → Phone, or `PATCH /locations/{id}` with `{"phone": "+1XXXXXXXXXX"}`). With `?location_id=` in the agent's URLs this is only the fallback route, but it is also the number the agent and the emails give customers as "the salon's number".
+
+The only server setting the voice agent needs is `RETELL_API_KEY` (the workspace key Retell signs with). The public address is not a setting: it is written into the agent's tool and webhook URLs.
+
+## 6. Check a real call
+
+While you dial the number, watch the server log:
+
+```bash
+bash infra/ec2/remote.sh "docker logs salon-api-1 --since 10m 2>&1 | grep -E 'retell|webhooks|Refused|routed'"
+```
+
+A good call shows, in order: `POST /webhooks/retell?location_id=... 200` (call started), `POST /retell/functions/get_salon_info?... 200`, then the tools used (`check_availability`, `create_booking`, ...), and two more webhook lines after you hang up (call ended, call analysed). `Refused ...` means a signature problem; `could not be routed` means the location could not be worked out.
+
+Afterwards:
+
+- **Dashboard → Voice calls:** the call with your number as the caller, its duration, outcome and transcript (the summary arrives a few seconds after hang-up).
+- **Dashboard → Bookings / Calendar:** the booking with source **Voice**.
+- **Email:** the salon's booking-alerts address gets "New booking ... by phone (voice agent)".
+- **Database:** `call_logs` (one row per call, `retell_call_id`), `appointments` (`source = 'voice'`, `call_id` set), `notification_outbox` (the alert, `status = 'sent'`).
+
 ## What the tools guarantee
 
 - Every tool answers `{ "success": true|false, "message": "...", ... }`. `success: true` means the database changed.

@@ -511,6 +511,22 @@ async def test_a_location_can_be_pinned_with_a_dynamic_variable(client: AsyncCli
     assert (await tool(client, "get_salon_info", call=bad))["error"] == "unknown_salon"
 
 
+@pytest.mark.parametrize(
+    "dialled",
+    ["+19787343798", "19787343798", "+1 978-734-3798", "+1 (978) 734 3798", "001 978 734 3798"],
+)
+async def test_a_us_line_routes_to_a_pakistani_salon_however_it_is_written(
+    client: AsyncClient, dialled: str
+) -> None:
+    """A Twilio US number on a salon whose country is PK: the country must not get in the way."""
+    s = await salon(client)
+    await client.patch(
+        f"/locations/{s.location_id}", json={"phone": "+19787343798"}, headers=s.owner.headers
+    )
+    info = await tool(client, "get_salon_info", call=call_object(to=dialled))
+    assert info["success"] is True and info["phone"] == "+19787343798"
+
+
 async def test_a_location_can_be_pinned_in_the_tool_url(client: AsyncClient) -> None:
     """One agent per location: no phone number or dynamic variable needed (Retell web tests)."""
     s = await salon(client)
