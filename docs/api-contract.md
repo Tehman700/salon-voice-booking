@@ -109,7 +109,7 @@ type User = {
 };
 ```
 
-## Catalog and schedules (M2) — draft
+## Catalog and schedules (M2, built)
 
 ```ts
 type Service = {
@@ -129,9 +129,30 @@ type WorkingHours = { weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; start: string; end: st
 type TimeOff = { id: string; staff_id: string; starts_at: string; ends_at: string; reason: string | null };
 type Closure = { id: string; location_id: string; date: string; reason: string | null };
 ```
-Endpoints: `GET/POST /services`, `PATCH/DELETE /services/{id}`, `GET/POST /staff`, `PATCH/DELETE /staff/{id}`, `GET/PUT /staff/{id}/hours`, `GET/POST /staff/{id}/time-off`, `GET/PUT /locations/{id}/hours`, `GET/POST /locations/{id}/closures`.
+### Built in M2 (catalog and schedules)
 
-## Availability and bookings (M3–M4) — draft
+All roles can read; writes need **owner or manager** (managers only inside their own location). List endpoints return `{items, next_cursor: null}`.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/services` | The business-wide catalog, with per-location overrides |
+| POST | `/services` | `409 service_name_taken` (names are unique, ignoring case) |
+| PATCH | `/services/{id}` | Partial. `location_overrides`, if present, replaces the overrides the caller may edit: owners all locations, managers only their own (other rows are left untouched) |
+| DELETE | `/services/{id}` | `204`. Deactivates; services are never deleted |
+| GET | `/staff?location_id=` | Owners see all; managers and staff only their own location |
+| POST | `/staff` | Working hours start as a copy of the location's opening hours. Optional `user_id` links a dashboard login (`409 user_already_linked`) |
+| PATCH | `/staff/{id}` | Partial. `service_ids` replaces the list; `title: null` clears it; only an owner can change `location_id` |
+| DELETE | `/staff/{id}` | `204`. Deactivates |
+| GET / PUT | `/staff/{id}/hours` | `WorkingHours`. PUT replaces everything; a day may have several non-overlapping blocks (`422` otherwise) |
+| GET / POST | `/staff/{id}/time-off` | `POST {starts_at, ends_at, reason?}`; times must carry a timezone |
+| DELETE | `/staff/{id}/time-off/{time_off_id}` | `204` |
+| GET / PUT | `/locations/{id}/hours` | Opening hours; a weekday with no block is closed. New locations default to Mon-Sat 10:00-19:00 |
+| GET / POST | `/locations/{id}/closures` | `POST {date, reason?}`; `409 closure_exists` |
+| DELETE | `/locations/{id}/closures/{closure_id}` | `204` |
+
+`Closure` is `{id, date, reason}` (the location is the one in the URL). Services and staff are shared records of one business: another business's ids, and (for managers) other locations' staff, are `404`.
+
+## Availability (M3, built) and bookings (M4, draft)
 
 ```ts
 type AvailabilityRequest = {
@@ -153,7 +174,7 @@ type Booking = {
 ```
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/availability` | `AvailabilityRequest` → `{ slots: Slot[] }` |
+| POST | `/availability` | **Built.** `AvailabilityRequest` → `{ slots: Slot[] }`. Any role, for locations they can access. Dates are location-local, at most 31 days. Slots are every 15 minutes where the whole service fits inside the location's opening hours and the staff member's working hours, clear of time off and existing appointments (including the service's cleanup buffer); times in the past are never offered. `staff_id` omitted = any staff. A closed, inactive or not-offered situation gives `{slots: []}`, not an error |
 | POST | `/bookings` | Requires `Idempotency-Key` header. `409 slot_unavailable` includes `details.alternatives: Slot[]` |
 | GET | `/bookings` | Filters: `location_id, staff_id, status, from, to, q`. Staff role sees only their own |
 | GET | `/bookings/{id}` | |

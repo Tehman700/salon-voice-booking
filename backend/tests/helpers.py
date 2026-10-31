@@ -209,3 +209,37 @@ async def build_world(client: AsyncClient) -> World:
         owner_b=owner_b,
         location_b=location_b,
     )
+
+
+async def create_service(
+    client: AsyncClient, owner: Session, name: str = "Haircut", **overrides: Any
+) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "name": name,
+        "duration_minutes": 60,
+        "buffer_minutes": 0,
+        "price_minor": 350000,
+        **overrides,
+    }
+    response = await client.post("/services", json=body, headers=owner.headers)
+    assert response.status_code == 201, response.text
+    return dict(response.json())
+
+
+async def create_staff(
+    client: AsyncClient,
+    session: Session,
+    location_id: str,
+    name: str = "Sana Iqbal",
+    service_ids: list[str] | None = None,
+    **overrides: Any,
+) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "location_id": location_id,
+        "full_name": name,
+        "service_ids": service_ids or [],
+        **overrides,
+    }
+    response = await client.post("/staff", json=body, headers=session.headers)
+    assert response.status_code == 201, response.text
+    return dict(response.json())

@@ -433,7 +433,10 @@ export const handlers = [
   http.get(
     `${API}/services`,
     authed(({ ctx }) =>
-      HttpResponse.json(ctx.db.services.filter((s) => s.business_id === ctx.user.business_id).map(stripTenant)),
+      HttpResponse.json({
+        items: ctx.db.services.filter((s) => s.business_id === ctx.user.business_id).map(stripTenant),
+        next_cursor: null,
+      }),
     ),
   ),
 
@@ -486,7 +489,7 @@ export const handlers = [
       const list = ctx.db.staff.filter(
         (s) => s.business_id === ctx.user.business_id && (!locationId || s.location_id === locationId),
       );
-      return HttpResponse.json(list.map(stripTenant));
+      return HttpResponse.json({ items: list.map(stripTenant), next_cursor: null });
     }),
   ),
 

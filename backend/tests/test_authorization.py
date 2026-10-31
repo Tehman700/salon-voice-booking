@@ -1,5 +1,6 @@
 """Who may call what: every protected endpoint against every kind of caller."""
 
+import re
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -124,9 +125,8 @@ async def test_every_non_public_route_requires_authentication(
     client: AsyncClient, method: str, path: str
 ) -> None:
     """Guards against a future endpoint being added without authentication."""
-    concrete = path.replace("{location_id}", str(uuid.uuid4())).replace(
-        "{user_id}", str(uuid.uuid4())
-    )
+    # Any path parameter will do: authentication is checked before the resource is looked up.
+    concrete = re.sub(r"\{[^}]+\}", lambda _: str(uuid.uuid4()), path)
     assert "{" not in concrete, f"teach this test how to fill in {path}"
     response = await client.request(method, concrete)
     assert response.status_code == 401, f"{method} {path} is reachable without a token"

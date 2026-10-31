@@ -82,14 +82,15 @@ export const api = {
   },
 
   services: {
-    list: () => http.get<Service[]>("/services"),
+    list: async () => (await http.get<Paginated<Service>>("/services")).items,
     create: (body: ServiceInput) => http.post<Service>("/services", body),
     update: (id: string, body: Partial<ServiceInput>) => http.patch<Service>(`/services/${id}`, body),
     remove: (id: string) => http.delete<void>(`/services/${id}`),
   },
 
   staff: {
-    list: (query?: { location_id?: string }) => http.get<Staff[]>("/staff", { query }),
+    list: async (query?: { location_id?: string }) =>
+      (await http.get<Paginated<Staff>>("/staff", { query })).items,
     create: (body: StaffInput) => http.post<Staff>("/staff", body),
     update: (id: string, body: Partial<StaffInput>) => http.patch<Staff>(`/staff/${id}`, body),
     remove: (id: string) => http.delete<void>(`/staff/${id}`),

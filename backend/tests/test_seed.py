@@ -52,7 +52,7 @@ def test_seed_command_creates_then_reports_existing(capsys: pytest.CaptureFixtur
     assert "owner@demo.example.com" in first
 
     assert asyncio.run(seed_module.main()) == 0
-    assert "already exists" in capsys.readouterr().out
+    assert "already complete" in capsys.readouterr().out
 
 
 def _main_in(
@@ -84,3 +84,42 @@ def test_remote_seeding_never_uses_the_public_default_password(
 
 def test_remote_seeding_with_the_flag_and_a_password(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _main_in("staging", ["--allow-remote"], secrets.token_urlsafe(16), monkeypatch) == 0
+
+
+async def test_seeded_demo_business_can_already_take_availability_requests(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await seed_module.seed(db, "demo-pass-123456")
+    owner = await login(client, "owner@demo.example.com", "demo-pass-123456")
+
+    services = (await client.get("/services", headers=owner.headers)).json()["items"]
+    staff = (await client.get("/staff", headers=owner.headers)).json()["items"]
+    assert len(services) == 5 and len(staff) == 4
+    haircut = next(s for s in services if s["name"] == "Women's haircut")
+    downtown = next(m for m in staff if m["full_name"] == "Sana Iqbal")["location_id"]
+
+    response = await client.post(
+        "/availability",
+        json={
+            "location_id": downtown,
+            "service_id": haircut["id"],
+            "date_from": "2030-01-07",
+            "date_to": "2030-01-07",
+        },
+        headers=owner.headers,
+    )
+    assert response.status_code == 200
+    assert {s["staff_name"] for s in response.json()["slots"]} == {"Sana Iqbal"}
+
+
+async def test_seeding_tops_up_a_business_that_has_no_catalog_yet(db: AsyncSession) -> None:
+    """The deployed demo was seeded before services existed; re-running adds them, once."""
+    from sqlalchemy import delete
+
+    from app.models.catalog import Service
+
+    assert await seed_module.seed(db) is True
+    await db.execute(delete(Service))  # simulate the older database
+    await db.commit()
+    assert await seed_module.seed(db) is True  # adds the catalog back
+    assert await seed_module.seed(db) is False  # and then has nothing left to do
