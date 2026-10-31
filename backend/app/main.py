@@ -5,7 +5,18 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, bookings, business, calls, catalog, health, locations, retell, users
+from app.api import (
+    auth,
+    bookings,
+    business,
+    calls,
+    catalog,
+    health,
+    locations,
+    retell,
+    twilio,
+    users,
+)
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 from app.db.session import get_sessionmaker
@@ -63,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(calls.router)
     app.include_router(retell.functions_router)
     app.include_router(retell.webhooks_router)
+    app.include_router(twilio.router)
     return app
 
 

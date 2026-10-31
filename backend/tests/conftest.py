@@ -127,3 +127,26 @@ def retell_key() -> Iterator[None]:
     settings.retell_api_key = SecretStr("test-retell-api-key")
     yield
     settings.retell_api_key = original
+
+
+TWILIO_TEST_SETTINGS = {
+    "twilio_account_sid": "AC00000000000000000000000000000000",
+    "twilio_api_key_sid": "SK00000000000000000000000000000000",
+    "twilio_api_key_secret": SecretStr("test-api-key-secret-32-characters"),
+    "twilio_twiml_app_sid": "AP00000000000000000000000000000000",
+    "twilio_auth_token": SecretStr("test-auth-token"),
+    "twilio_dial_to": "+19787343798",
+    "twilio_caller_id": None,
+}
+
+
+@pytest.fixture
+def twilio_settings() -> Iterator[None]:
+    """Configure browser calling with test credentials."""
+    settings = get_settings()
+    original = {name: getattr(settings, name) for name in TWILIO_TEST_SETTINGS}
+    for name, value in TWILIO_TEST_SETTINGS.items():
+        setattr(settings, name, value)
+    yield
+    for name, value in original.items():
+        setattr(settings, name, value)

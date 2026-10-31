@@ -74,7 +74,29 @@ Afterwards:
 - **Email:** the salon's booking-alerts address gets "New booking ... by phone (voice agent)".
 - **Database:** `call_logs` (one row per call, `retell_call_id`), `appointments` (`source = 'voice'`, `call_id` set), `notification_outbox` (the alert, `status = 'sent'`).
 
-## What the tools guarantee
+## 7. Call from the browser (Twilio Voice SDK)
+
+The **Call the receptionist** button on the dashboard's Voice calls page places a call from the browser through Twilio to the salon line, so a demo needs no phone and no international call.
+
+In the Twilio console (credentials never go in the repo):
+
+1. **API key:** Account → API keys & tokens → **Create API key** (Standard). Copy its **SID** (`SK...`) and **secret** (shown once).
+2. **TwiML App:** Voice → TwiML → TwiML Apps → **Create**. Voice request URL `https://<API host>/twilio/voice`, method `POST`. Copy its **SID** (`AP...`).
+
+On the server, add to `/opt/salon/.env` (then `GIT_REF=main bash infra/ec2/update.sh`):
+
+```
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_API_KEY_SID=SK...
+TWILIO_API_KEY_SECRET=<secret>
+TWILIO_TWIML_APP_SID=AP...
+TWILIO_AUTH_TOKEN=<auth token>   # verifies Twilio's webhook signature
+TWILIO_DIAL_TO=+1XXXXXXXXXX      # the salon line
+```
+
+A **trial** Twilio account may refuse to dial out to a number that is not verified. If the button connects and then fails, set `TWILIO_DIAL_TO=sip:+1XXXXXXXXXX@sip.retellai.com` and `TWILIO_CALLER_ID=+1XXXXXXXXXX` to go straight to Retell over SIP, or upgrade the account.
+
+
 
 - Every tool answers `{ "success": true|false, "message": "...", ... }`. `success: true` means the database changed.
 - A repeated tool call in the same call (Retell retries) returns the same booking, never a second one.

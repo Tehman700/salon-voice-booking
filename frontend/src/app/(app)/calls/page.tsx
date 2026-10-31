@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { BarChart, SplitBars } from "@/components/bars";
+import { CallReceptionist } from "@/components/call-receptionist";
 import { OUTCOME_BAR, OUTCOME_LABEL, OutcomeBadge } from "@/components/outcome-badge";
 import { EmptyState, ErrorNotice, PageHeader, StatCard, TableSkeleton } from "@/components/page-bits";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,11 @@ export default function CallsPage() {
 
   return (
     <>
-      <PageHeader title="Voice calls" description="Every call the AI receptionist took, with what it did about it." />
+      <PageHeader
+        title="Voice calls"
+        description="Every call the AI receptionist took, with what it did about it."
+        actions={<CallReceptionist />}
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Calls" value={stats.data?.total ?? 0} hint="last 14 days" loading={stats.isLoading} />

@@ -129,4 +129,9 @@ export const api = {
     stats: (query: { from?: string; to?: string; location_id?: string } = {}) =>
       http.get<CallStats>("/calls/stats", { query }),
   },
+
+  twilio: {
+    // A short-lived token for calling the receptionist from the browser (503 if not set up).
+    token: () => http.post<{ token: string; identity: string; expires_in: number }>("/twilio/token", {}),
+  },
 };

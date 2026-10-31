@@ -218,6 +218,15 @@ type CallStats = { total: number; by_outcome: Record<CallOutcome, number>; per_d
 
 Outcomes: `booked`, `rescheduled` and `cancelled` are set only when a tool really changed a booking (the latest one wins); a call that did none of those is `info_only`, unless nobody spoke (`abandoned`) or Retell reported an error (`failed`).
 
+### Calling the receptionist from the browser (Twilio Voice SDK)
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/twilio/token` | Any signed-in user. `{token, identity, expires_in}`: a Twilio Voice access token (outgoing calls only, 1 hour) for `@twilio/voice-sdk`. `503 browser_calling_not_configured` until the `TWILIO_*` settings exist |
+| POST | `/twilio/voice` | Called by Twilio, not the dashboard; authenticated by `X-Twilio-Signature`. Answers TwiML that dials the configured salon line (`TWILIO_DIAL_TO`, a number or `sip:` URI), 15-minute limit. Whatever the request asks to dial is ignored, so it cannot be used to call anywhere else |
+
+A call presented with the salon's own number as caller ID (as browser calls are) has no customer number: the agent asks for one.
+
 ### Endpoints Retell calls (not for the dashboard)
 
 Authenticated by the `X-Retell-Signature` header (HMAC of the body with the Retell API key; requests more than 5 minutes old are refused), not by a user token. Without `RETELL_API_KEY` configured they answer `503 voice_not_configured`; a bad signature is `401 invalid_signature`.

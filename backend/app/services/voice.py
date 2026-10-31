@@ -204,6 +204,17 @@ async def resolve_place(
     return _place(matches[0]) if len(matches) == 1 else None
 
 
+def _customer_caller_id(from_number: str | None, place: Place) -> str | None:
+    """The caller's number, unless it is the salon's own line (as with browser test calls)."""
+    if (
+        from_number
+        and place.phone
+        and (_digits(from_number, place.country) == _digits(place.phone, place.country))
+    ):
+        return None
+    return from_number
+
+
 def principal_for(place: Place) -> Principal:
     """The voice agent acts like a manager of this one location, and never forces anything."""
     return Principal(
@@ -812,7 +823,7 @@ async def run_tool(
         place=place,
         call_log_id=log.id,
         retell_call_id=request.call.call_id,
-        caller_phone=request.call.from_number,
+        caller_phone=_customer_caller_id(request.call.from_number, place),
         now=now or datetime.now(UTC),
     )
     try:

@@ -101,7 +101,7 @@ PUBLIC_PATHS = {
 
 
 # Called by Retell, not by users: protected by a request signature instead of a token.
-SIGNED_PREFIXES = ("/retell/", "/webhooks/")
+SIGNED_PREFIXES = ("/retell/", "/webhooks/", "/twilio/voice")
 
 
 def _routes(*, signed: bool) -> list[tuple[str, str]]:
@@ -140,7 +140,7 @@ async def test_every_non_public_route_requires_authentication(
     assert response.status_code == 401, f"{method} {path} is reachable without a token"
 
 
-@pytest.mark.usefixtures("retell_key")
+@pytest.mark.usefixtures("retell_key", "twilio_settings")
 @pytest.mark.parametrize(("method", "path"), _routes(signed=True), ids=lambda v: str(v))
 async def test_every_signed_route_refuses_unsigned_requests(
     client: AsyncClient, method: str, path: str
@@ -155,3 +155,4 @@ async def test_every_signed_route_refuses_unsigned_requests(
 def test_the_signed_route_guard_covers_the_voice_api() -> None:
     assert ("POST", "/webhooks/retell") in _routes(signed=True)
     assert ("POST", "/retell/functions/{tool_name}") in _routes(signed=True)
+    assert ("POST", "/twilio/voice") in _routes(signed=True)

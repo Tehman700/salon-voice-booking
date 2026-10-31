@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     # How often the background sender looks for due emails.
     email_poll_seconds: float = 15
 
+    # --- Browser calling (Twilio Voice SDK). All of these unset -> /twilio/* answers 503 ---
+    twilio_account_sid: str | None = None
+    twilio_api_key_sid: str | None = None
+    twilio_api_key_secret: SecretStr | None = None
+    twilio_twiml_app_sid: str | None = None
+    # Verifies Twilio's webhook signatures.
+    twilio_auth_token: SecretStr | None = None
+    # Where browser calls are connected: the salon line (+1...) or a SIP URI (sip:...).
+    twilio_dial_to: str | None = None
+    # The caller ID Twilio presents; must be a Twilio number you own. Defaults to twilio_dial_to.
+    twilio_caller_id: str | None = None
+
     # --- Voice (Retell) ---
     # Signs Retell's requests (custom functions and webhooks). Unset -> /retell/* and
     # /webhooks/retell answer 503 instead of trusting anyone.
@@ -63,6 +75,20 @@ class Settings(BaseSettings):
     @property
     def email_from_header(self) -> str:
         return f"{self.email_from_name} <{self.email_from}>"
+
+    @field_validator(
+        "twilio_account_sid",
+        "twilio_api_key_sid",
+        "twilio_api_key_secret",
+        "twilio_twiml_app_sid",
+        "twilio_auth_token",
+        "twilio_dial_to",
+        "twilio_caller_id",
+        mode="before",
+    )
+    @classmethod
+    def _blank_twilio_setting_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("retell_api_key", mode="before")
     @classmethod
