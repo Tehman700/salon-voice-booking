@@ -4,7 +4,7 @@ An AI-powered, multi-location salon booking platform. Customers call a natural-s
 
 > **Status:** done: foundation, tenancy + auth, the dashboard, a live demo deployment, and the service catalog, staff, schedules and availability engine. Next: booking with double-booking prevention, then the voice agent.
 
-**Live demo:** dashboard https://salon-voice.vercel.app (sample data) and the real API at its `/docs` page, see [docs/deployment.md](docs/deployment.md).
+**Live demo:** dashboard https://salon-voice.vercel.app (on the real backend; demo logins are shared privately) and the API docs at its `/docs` page, see [docs/deployment.md](docs/deployment.md).
 
 ## Quick start
 ```bash

@@ -16,7 +16,7 @@ Browser ──https──▶ Vercel (Next.js dashboard)
 
 | Part | Where | Notes |
 |---|---|---|
-| Dashboard | Vercel project `salon-voice` → https://salon-voice.vercel.app | Demo mode (`NEXT_PUBLIC_API_MOCKS=true`): every page works on sample data |
+| Dashboard | Vercel project `salon-voice` → https://salon-voice.vercel.app | Real backend (`NEXT_PUBLIC_API_MOCKS=false`; `/api/*` is proxied to `BACKEND_URL`, the EC2 API). Set it back to `true` and redeploy to show sample data instead |
 | API | EC2 `salon-demo` behind Caddy → `https://<ip>.sslip.io` (docs at `/docs`) | Real backend: sign-in, business, locations, team, services, staff, schedules, availability, bookings, customers, call log and the voice-agent endpoints (the voice agent itself needs `RETELL_API_KEY`, see [retell/README.md](../retell/README.md)) |
 | Database | PostgreSQL in a Docker volume on the same server | Single copy, no backups |
 | Code | GitHub `Tehman700/salon-voice-booking` | The server pulls from here |
